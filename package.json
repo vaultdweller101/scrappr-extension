@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "@types/chrome": "^0.1.29",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@types/webextension-polyfill": "^0.12.4",
+    "@vitejs/plugin-react": "^5.1.1"
+  },
+  "dependencies": {
+    "path": "^0.12.7",
+    "url": "^0.11.4",
+    "vite": "^7.2.2",
+    "webextension-polyfill": "^0.12.0"
+  }
+}

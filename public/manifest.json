@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Scrappr for Google Docs",
+  "version": "1.0",
+  "description": "Smart note-taking and suggestions for Google Docs.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "action": {
+    "default_popup": "notes.html",
+    "default_icon": {
+      "16": "assets/scrappr.png",
+      "48": "assets/scrappr.png",
+      "128": "assets/scrappr.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://docs.google.com/document/d/*"],
+      "js": ["content.js"],
+      "css": ["style.css"]
+    }
+  ],
+  "icons": {
+    "16": "assets/scrappr.png",
+    "48": "assets/scrappr.png",
+    "128": "assets/scrappr.png"
+  }
+}

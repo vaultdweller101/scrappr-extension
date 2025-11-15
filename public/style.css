@@ -1,0 +1,40 @@
+/* These styles will be injected into Google Docs */
+.suggestions-modal {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-radius: 6px;
+  min-width: 250px;
+  max-width: 350px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.suggestions-modal h3 {
+  font-size: 12px;
+  margin: 0;
+  color: #5f6368;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.suggestion {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  font-size: 13px;
+  color: #202124;
+}
+
+.suggestion:hover {
+  background: #f8f9fa;
+}
+
+.suggestions-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.suggestions-list .suggestion:last-child {
+  border-bottom: none;
+}
