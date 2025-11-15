@@ -6,26 +6,12 @@
   "permissions": [
     "storage",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "clipboardRead" 
   ],
   "action": {
-    "default_popup": "notes.html",
-    "default_icon": {
-      "16": "assets/scrappr.png",
-      "48": "assets/scrappr.png",
-      "128": "assets/scrappr.png"
-    }
+    "default_popup": "notes.html"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://docs.google.com/document/d/*"],
-      "js": [
-        "browser-polyfill.js", 
-        "content.js"
-      ],
-      "css": ["style.css"]
-    }
-  ],
   "icons": {
     "16": "assets/scrappr.png",
     "48": "assets/scrappr.png",

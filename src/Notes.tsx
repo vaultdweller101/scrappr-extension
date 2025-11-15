@@ -1,7 +1,52 @@
 import React, { useEffect, useState } from 'react';
-import browser  from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 
-// SavedNote interface remains the same
+// --- Suggestion Logic (unchanged) ---
+
+function tokenizeAndNormalize(text: string): Set<string> {
+  if (!text) return new Set();
+  const words = text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .split(/\s+/); // Split by spaces
+  const stopWords = new Set([
+    'i', 'a', 'an', 'the', 'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'by', 'for', 'from', 'in', 'of',
+    'on', 'to', 'with', 'and', 'but', 'or', 'so', 'if', 'about', 'at', 'it',
+    'my', 'me', 'you', 'your'
+  ]);
+  return new Set(words.filter(word => word.length > 1 && !stopWords.has(word)));
+}
+
+function findSuggestions(
+  sentence: string,
+  savedNotes: SavedNote[]
+): SavedNote[] {
+  const searchTokens = tokenizeAndNormalize(sentence);
+  if (searchTokens.size === 0) {
+    return [];
+  }
+  const scoredNotes = savedNotes.map(note => {
+    const noteContentLower = note.content.toLowerCase();
+    const noteTokens = tokenizeAndNormalize(noteContentLower);
+    let score = 0;
+    for (const token of searchTokens) {
+      if (noteTokens.has(token)) {
+        score += 1;
+      }
+    }
+    if (noteContentLower.includes(sentence.toLowerCase())) {
+      score += 10;
+    }
+    return { note, score };
+  })
+  .filter(item => item.score > 0)
+  .sort((a, b) => b.score - a.score);
+  return scoredNotes.slice(0, 50).map(item => item.note);
+}
+
+// --- React Component ---
+
 export interface SavedNote {
   id: string;
   content: string;
@@ -9,13 +54,10 @@ export interface SavedNote {
 }
 
 interface NotesProps {
-  // We keep this prop for compatibility, but the popup
-  // doesn't really need to send notes anywhere.
   onNotesChange: (notes: SavedNote[]) => void;
 }
 
-// renderNote function remains the same...
-function renderNote(note: SavedNote, deleteNote: (id: string) => void) {
+function renderNote(note: SavedNote, deleteNote?: (id: string) => void) {
   return (
     <div key={note.id} className="saved-note">
       <div className="note-content">
@@ -25,14 +67,16 @@ function renderNote(note: SavedNote, deleteNote: (id: string) => void) {
         <div className="note-date">
           {new Date(note.timestamp).toLocaleDateString()}
         </div>
-        <button 
-          onClick={() => deleteNote(note.id)}
-          className="delete-note"
-          title="Delete this note"
-          aria-label="Delete note"
-        >
-          X 
-        </button>
+        {deleteNote && (
+          <button 
+            onClick={() => deleteNote(note.id)}
+            className="delete-note"
+            title="Delete this note"
+            aria-label="Delete note"
+          >
+            X
+          </button>
+        )}
       </div>
     </div>
   );
@@ -40,25 +84,47 @@ function renderNote(note: SavedNote, deleteNote: (id: string) => void) {
 
 export default function Notes({ onNotesChange }: NotesProps) {
   const [savedNotes, setSavedNotes] = useState<SavedNote[]>([]);
+  const [suggestions, setSuggestions] = useState<SavedNote[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [currentView, setCurrentView] = useState<'suggestions' | 'notes'>('suggestions');
+  const [statusMessage, setStatusMessage] = useState('Loading notes...');
 
-  // Load saved notes from storage on mount
   useEffect(() => {
-    interface StorageResult {
-      scrapprSavedNotes?: SavedNote[];
-    }
-    
-    browser.storage.local.get('scrapprSavedNotes').then((result: StorageResult) => {
-      const notes = result.scrapprSavedNotes;
-      if (notes && Array.isArray(notes)) {
-        setSavedNotes(notes);
-        onNotesChange(notes);
-      }
-    });
-  }, [onNotesChange]);
+    // 1. Load all saved notes from storage
+    browser.storage.local.get('scrapprSavedNotes').then((result: { scrapprSavedNotes?: SavedNote[] }) => {
+      const allNotes = result.scrapprSavedNotes || [];
+      setSavedNotes(allNotes);
 
-  // --- Functions for opening/closing the modal ---
+      // 2. Try to read text from the user's clipboard
+      navigator.clipboard.readText()
+        .then((clipboardText) => {
+          const sentence = clipboardText ? clipboardText.trim() : "";
+
+          if (sentence.length > 0) {
+            const foundSuggestions = findSuggestions(sentence, allNotes);
+            setSuggestions(foundSuggestions);
+            if (foundSuggestions.length > 0) {
+              setStatusMessage(`Top suggestions for: "${sentence.slice(0, 50)}..."`);
+            } else {
+              setStatusMessage(`No suggestions found for: "${sentence.slice(0, 50)}..."`);
+            }
+          } else {
+            // Clipboard is empty or user hasn't copied
+            setStatusMessage('No text in clipboard. Showing all notes.');
+            setCurrentView('notes');
+          }
+        })
+        .catch(err => {
+          // This might happen if permission wasn't granted or clipboard is locked
+          console.warn("Could not read from clipboard:", err.message);
+          setStatusMessage("Could not read clipboard. Showing all notes.");
+          setCurrentView('notes');
+        });
+    });
+  }, []); // Runs only once when popup opens
+
+  // --- Note Management (unchanged) ---
   const openNewNoteModal = () => {
     setNewNoteContent('');
     setIsModalOpen(true);
@@ -67,56 +133,67 @@ export default function Notes({ onNotesChange }: NotesProps) {
   const closeNewNoteModal = () => {
     setIsModalOpen(false);
   };
-  // -----------------------------------------------
 
-  // Save new note from modal
   const handleSaveNote = () => {
     if (!newNoteContent || !newNoteContent.trim()) {
       return;
     }
-    
     const newNote: SavedNote = {
       id: Date.now().toString(),
       content: newNoteContent,
       timestamp: Date.now()
     };
-    
     const updatedNotes = [newNote, ...savedNotes];
     setSavedNotes(updatedNotes);
-    
     browser.storage.local.set({ scrapprSavedNotes: updatedNotes }).then(() => {
       onNotesChange(updatedNotes);
       closeNewNoteModal();
     });
   };
 
-  // Delete a saved note
   const deleteNote = (noteId: string) => {
     if (!window.confirm('Are you sure you want to delete this note?')) {
       return;
     }
-
     const updatedNotes = savedNotes.filter(note => note.id !== noteId);
     setSavedNotes(updatedNotes);
-
     browser.storage.local.set({ scrapprSavedNotes: updatedNotes }).then(() => {
       onNotesChange(updatedNotes);
     });
   };
 
-  // ... (The return/render JSX is unchanged) ...
+  const notesToDisplay = currentView === 'suggestions' ? suggestions : savedNotes;
+
   return (
     <div className="notes-container">
       <div className="notes-toolbar">
         <button onClick={openNewNoteModal} className="save-note">
-          Save Note
+          Save New Note
+        </button>
+        <button 
+          onClick={() => setCurrentView(currentView === 'notes' ? 'suggestions' : 'notes')}
+          className="view-toggle-button"
+        >
+          {currentView === 'notes' ? 'Show Suggestions' : 'Show All Notes'}
         </button>
       </div>
       
       <div className="saved-notes">
-        <h3>Saved Notes ({savedNotes.length})</h3>
+        <h3 className="status-message">{
+          currentView === 'notes' ? `All Notes (${savedNotes.length})` : statusMessage
+        }</h3>
+        
         <div className="saved-notes-grid">
-          {savedNotes.map(note => renderNote(note, deleteNote))}
+          {notesToDisplay.length === 0 && currentView === 'suggestions' && (
+            <p className="no-notes-message">No suggestions found.</p>
+          )}
+          {notesToDisplay.length === 0 && currentView === 'notes' && (
+            <p className="no-notes-message">No notes saved yet. Click "Save New Note" to add one!</p>
+          )}
+          {notesToDisplay.map(note => renderNote(
+            note,
+            currentView === 'notes' ? deleteNote : undefined
+          ))}
         </div>
       </div>
 
