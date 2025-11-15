@@ -16,9 +16,6 @@ interface NotesProps {
 
 // renderNote function remains the same...
 function renderNote(note: SavedNote, deleteNote: (id: string) => void) {
-  // ... (No changes here from your original file)
-  // This function is just stubbed out for the example.
-  // You'd copy your original implementation here.
   return (
     <div key={note.id} className="saved-note">
       <div className="note-content">
@@ -34,7 +31,7 @@ function renderNote(note: SavedNote, deleteNote: (id: string) => void) {
           title="Delete this note"
           aria-label="Delete note"
         >
-          ×
+          X 
         </button>
       </div>
     </div>
@@ -48,7 +45,6 @@ export default function Notes({ onNotesChange }: NotesProps) {
 
   // Load saved notes from storage on mount
   useEffect(() => {
-    // Use .then() for the promise-based API
     interface StorageResult {
       scrapprSavedNotes?: SavedNote[];
     }
@@ -63,7 +59,6 @@ export default function Notes({ onNotesChange }: NotesProps) {
   }, [onNotesChange]);
 
   // --- Functions for opening/closing the modal ---
-  // (These are unchanged from your original logic)
   const openNewNoteModal = () => {
     setNewNoteContent('');
     setIsModalOpen(true);
@@ -89,7 +84,6 @@ export default function Notes({ onNotesChange }: NotesProps) {
     const updatedNotes = [newNote, ...savedNotes];
     setSavedNotes(updatedNotes);
     
-    // Use .then() for the promise-based API
     browser.storage.local.set({ scrapprSavedNotes: updatedNotes }).then(() => {
       onNotesChange(updatedNotes);
       closeNewNoteModal();
@@ -105,14 +99,12 @@ export default function Notes({ onNotesChange }: NotesProps) {
     const updatedNotes = savedNotes.filter(note => note.id !== noteId);
     setSavedNotes(updatedNotes);
 
-    // Use .then() for the promise-based API
     browser.storage.local.set({ scrapprSavedNotes: updatedNotes }).then(() => {
       onNotesChange(updatedNotes);
     });
   };
 
   // ... (The return/render JSX is unchanged) ...
-  // You'd copy your original implementation here.
   return (
     <div className="notes-container">
       <div className="notes-toolbar">

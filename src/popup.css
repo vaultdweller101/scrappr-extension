@@ -13,11 +13,22 @@ body {
   background: var(--bg);
   color: var(--text);
   margin: 0;
+
+  /* --- ADD THESE LINES --- */
+  width: 400px;
+  height: 500px; /* Give the popup a fixed height */
+  overflow: hidden; /* Prevent the whole popup from scrolling */
 }
 
 .notes-container {
   background: var(--bg);
   padding: 16px;
+
+  /* --- ADD THESE LINES --- */
+  height: 100%; /* Make the container fill the body's height */
+  box-sizing: border-box; /* Include padding in height calculation */
+  display: flex;
+  flex-direction: column;
 }
 
 .notes-toolbar {
@@ -37,6 +48,11 @@ body {
 
 .saved-notes {
   margin-top: 16px;
+
+  /* --- ADD THESE LINES --- */
+  flex: 1; /* Make this div grow to fill all remaining space */
+  overflow-y: auto; /* ADD THE SCROLLBAR when content overflows */
+  min-height: 0; /* A flexbox fix to allow shrinking/scrolling */
 }
 
 .saved-notes h3 {
