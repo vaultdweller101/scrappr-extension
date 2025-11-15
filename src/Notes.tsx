@@ -166,15 +166,20 @@ export default function Notes({ onNotesChange }: NotesProps) {
 
   return (
     <div className="notes-container">
+      {/* --- THIS IS THE NEW INSTRUCTION TEXT --- */}
+      <p className="instruction-text">
+        Highlight and copy the text, then open this extension, to see ideas suggestion.
+      </p>
+
       <div className="notes-toolbar">
         <button onClick={openNewNoteModal} className="save-note">
-          Save New Note
+          New Idea
         </button>
         <button 
           onClick={() => setCurrentView(currentView === 'notes' ? 'suggestions' : 'notes')}
           className="view-toggle-button"
         >
-          {currentView === 'notes' ? 'Show Suggestions' : 'Show All Notes'}
+          {currentView === 'notes' ? 'Show Suggestions' : 'Show All Ideas'}
         </button>
       </div>
       

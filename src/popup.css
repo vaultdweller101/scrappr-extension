@@ -233,3 +233,22 @@ body {
   padding: 20px 0;
   grid-column: 1 / -1; /* Make it span both columns */
 }
+
+.instruction-text {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #64748b; /* A muted text color */
+  text-align: center;
+  padding: 0 16px 12px; /* Add some padding */
+  margin: 0; /* Reset default margin */
+  border-bottom: 1px solid var(--border); /* Visually separate it */
+}
+
+/* --- ADD THIS FOR THE "NO NOTES" MESSAGE --- */
+.no-notes-message {
+  font-size: 0.875rem;
+  color: #64748b; /* Same as the h3 text */
+  text-align: center;
+  padding: 20px 0;
+  grid-column: 1 / -1; /* Make it span both columns */
+}
