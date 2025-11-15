@@ -19,7 +19,10 @@
   "content_scripts": [
     {
       "matches": ["https://docs.google.com/document/d/*"],
-      "js": ["content.js"],
+      "js": [
+        "browser-polyfill.js", 
+        "content.js"
+      ],
       "css": ["style.css"]
     }
   ],

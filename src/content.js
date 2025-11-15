@@ -1,5 +1,3 @@
-import browser from 'webextension-polyfill';
-
 let savedNotes = [];
 let suggestionsModal = null;
 let activeSuggestionRange = null;

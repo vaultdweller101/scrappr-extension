@@ -1,0 +1,188 @@
+/* Paste this into src/popup.css */
+:root{
+  --bg: #f7fafc;
+  --panel: #ffffff;
+  --accent: #3b82f6;
+  --accent-light: rgba(59,130,246,0.12);
+  --text: #0f172a;
+  --border: #e6eef9;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+}
+
+.notes-container {
+  background: var(--bg);
+  padding: 16px;
+}
+
+.notes-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.save-note {
+  padding: 6px 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.saved-notes {
+  margin-top: 16px;
+}
+
+.saved-notes h3 {
+  font-size: 0.875rem;
+  margin: 0 0 8px;
+  color: #64748b;
+}
+
+/* This creates the grid */
+.saved-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 columns for the popup */
+  gap: 12px;
+}
+
+/* This styles each item in the grid as a "tall card" */
+.saved-note {
+  padding: 12px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  display: flex;
+  flex-direction: column; 
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 100px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.note-content {
+  flex: 1; 
+  min-width: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.note-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; 
+  width: 100%;
+}
+
+.note-date {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.delete-note {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.delete-note:hover {
+  opacity: 1;
+  background: #fee2e2;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5); 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--panel);
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  width: 90%;
+  max-width: 380px; /* Sized for the popup */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-content h3 {
+  font-size: 1.125rem;
+  color: var(--text);
+  margin: 0;
+}
+
+.modal-textarea {
+  width: calc(100% - 24px); /* Full width minus padding */
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: none;
+  flex-grow: 1;
+  min-height: 200px;
+}
+
+.modal-textarea:focus {
+  outline: 2px solid var(--accent-light);
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.modal-button.save-note {
+  background: var(--accent);
+  color: white;
+}
+
+.modal-button.save-note:hover {
+  background: #2563eb; 
+}
+
+.modal-button.cancel-note {
+  background: #f1f5f9; 
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.modal-button.cancel-note:hover {
+  background: #e2e8f0; 
+}
