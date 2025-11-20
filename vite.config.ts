@@ -6,7 +6,6 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [
     react()
-    // We removed viteStaticCopy
   ],
   build: {
     target: 'es2020',
@@ -14,15 +13,14 @@ export default defineConfig({
     emptyOutDir: true, 
     
     rollupOptions: {
-      // We only have one input now: the popup
       input: {
         'notes-main': resolve('src/notes-main.tsx'),
+        'background': resolve('src/background.ts')
       },
       output: {
         entryFileNames: '[name].js',
         assetFileNames: '[name].[ext]',
-        format: 'iife', 
-        inlineDynamicImports: true,
+        format: 'es',
       },
     },
   },

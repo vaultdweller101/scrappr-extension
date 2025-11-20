@@ -21,5 +21,9 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://auth.firebase.com https://firestore.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com https://identitytoolkit.googleapis.com;"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   }
 }
