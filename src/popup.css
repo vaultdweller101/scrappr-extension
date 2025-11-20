@@ -252,3 +252,10 @@ body {
   padding: 20px 0;
   grid-column: 1 / -1; /* Make it span both columns */
 }
+
+/* --- ADD THIS FOR THE AUTHENTICATION BUTTON --- */
+.notes-container > .modal-button.save-note {
+  margin-top: 16px;
+  padding: 10px 20px;
+  width: 100%;
+}

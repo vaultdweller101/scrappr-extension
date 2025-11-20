@@ -5,7 +5,7 @@ import './popup.css';
 
 // A simple wrapper to keep things clean
 function PopupApp() {
-  return <Notes onNotesChange={() => {}} />;
+  return <Notes />;
 }
 
 const container = document.getElementById('root');

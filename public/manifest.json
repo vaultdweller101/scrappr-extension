@@ -7,7 +7,8 @@
     "storage",
     "scripting",
     "activeTab",
-    "clipboardRead" 
+    "clipboardRead", 
+    "identity"
   ],
   "action": {
     "default_popup": "notes.html"
@@ -16,5 +17,8 @@
     "16": "assets/scrappr.png",
     "48": "assets/scrappr.png",
     "128": "assets/scrappr.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://auth.firebase.com https://firestore.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com https://identitytoolkit.googleapis.com;"
   }
 }
