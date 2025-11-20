@@ -244,6 +244,22 @@ body {
   border-bottom: 1px solid var(--border); /* Visually separate it */
 }
 
+.pending-voice-banner {
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.pending-voice-text {
+  color: #0f172a;
+}
+
 /* --- ADD THIS FOR THE "NO NOTES" MESSAGE --- */
 .no-notes-message {
   font-size: 0.875rem;

@@ -19,6 +19,13 @@
     "48": "assets/scrappr.png",
     "128": "assets/scrappr.png"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://docs.google.com/*"],
+      "js": ["speech-content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://auth.firebase.com https://firestore.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com https://identitytoolkit.googleapis.com;"
   },

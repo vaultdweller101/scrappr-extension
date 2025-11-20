@@ -53,6 +53,12 @@ export interface SavedNote {
   timestamp: number; // For sorting and display
 }
 
+interface PendingVoiceNote {
+  id: number;
+  createdAt: number;
+  text: string;
+}
+
 function renderNote(note: SavedNote, deleteNote?: (id: string) => void) {
   return (
     <div key={note.id} className="saved-note">
@@ -87,6 +93,7 @@ export default function Notes() {
   const [currentView, setCurrentView] = useState<'suggestions' | 'notes'>('suggestions');
   const [statusMessage, setStatusMessage] = useState('Loading notes...');
   const [dataLoading, setDataLoading] = useState(true); // Separate loading state for notes
+  const [pendingVoiceNotes, setPendingVoiceNotes] = useState<PendingVoiceNote[]>([]);
 
   useEffect(() => {
     // Stop listening or clear notes if no user is logged in
@@ -145,6 +152,19 @@ export default function Notes() {
     return () => unsubscribe();
   }, [user]); // Depend on user state
 
+  useEffect(() => {
+    browser.storage.local.get('scrapprVoiceNotesPending')
+      .then((result) => {
+        const raw = (result as any).scrapprVoiceNotesPending;
+        if (Array.isArray(raw)) {
+          setPendingVoiceNotes(raw as PendingVoiceNote[]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load pending voice notes:', err);
+      });
+  }, []);
+
   const openNewNoteModal = () => {
     setNewNoteContent('');
     setIsModalOpen(true);
@@ -152,6 +172,23 @@ export default function Notes() {
 
   const closeNewNoteModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleUseLatestVoiceNote = async () => {
+    if (pendingVoiceNotes.length === 0) return;
+
+    const latest = [...pendingVoiceNotes].sort((a, b) => b.createdAt - a.createdAt)[0];
+    setNewNoteContent(latest.text);
+    setIsModalOpen(true);
+
+    const remaining = pendingVoiceNotes.filter((note) => note.id !== latest.id);
+    setPendingVoiceNotes(remaining);
+
+    try {
+      await browser.storage.local.set({ scrapprVoiceNotesPending: remaining });
+    } catch (err) {
+      console.warn('Failed to update pending voice notes:', err);
+    }
   };
 
   // Save note to Firestore
@@ -215,6 +252,20 @@ export default function Notes() {
       <p className="instruction-text">
         Highlight and copy the text, then open this extension, to see ideas suggestion.
       </p>
+
+      {pendingVoiceNotes.length > 0 && (
+        <div className="pending-voice-banner">
+          <span className="pending-voice-text">
+            You have {pendingVoiceNotes.length} voice note{pendingVoiceNotes.length > 1 ? 's' : ''} ready to import.
+          </span>
+          <button
+            onClick={handleUseLatestVoiceNote}
+            className="view-toggle-button"
+          >
+            Use latest
+          </button>
+        </div>
+      )}
 
       <div className="notes-toolbar">
         <button onClick={openNewNoteModal} className="save-note">
