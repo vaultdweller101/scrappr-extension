@@ -1,2 +1,6 @@
 node_modules/
 dist/
+
+# OAuth credentials
+client_secret*.json
+
