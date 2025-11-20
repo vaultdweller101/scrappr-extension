@@ -48,8 +48,9 @@ export function useAuth() {
         "https://www.googleapis.com/auth/userinfo.profile"
       ];
       
-      const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${clientId}&scope=${scopes.join(' ')}&response_type=token&redirect_uri=${browser.identity.getRedirectURL()}`;
-
+      // Force user to select account each time
+      const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${clientId}&scope=${scopes.join(' ')}&response_type=token&redirect_uri=${browser.identity.getRedirectURL()}&prompt=select_account`;
+      
       // 2. Launch the Web Auth Flow
       const tokenResult = await browser.identity.launchWebAuthFlow({
           url: authUrl,
