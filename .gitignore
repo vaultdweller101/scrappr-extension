@@ -4,3 +4,5 @@ dist/
 # OAuth credentials
 client_secret*.json
 
+*.crx
+*.pem

@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Scrappr for Google Docs",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3UQlN5Osi3JK0cOU7yT6+1Zt2nQAOGoCGxy2yx8YTcNgmsRMSVR5KaZKkPA4Sc37E/T/SXU/8ZyocW+k9UGetzT8MolMkYfXxLu1Hqzm1rjZWtIyGabn2iZVW3yyfZ+3iAsH1jqQGI3U2y7WOH6AbDnKnavWzMcBXOIddpRQZeBpm+9Qc699vcGQgq693tDf7vJm6tuWuBEfNK5F3Zw0X0o7WYCcYNyFcGEqO6qKgKd8fI3bseRC9jO8go4BfJ1JIYQwfJMwIIsFBiodMjljgm+z//K87pTP/4l0V5MrsV5NTh2n7uy6uV6L4020Avbti2uZ3UA6H0BYdEqTfE4kLQIDAQAB",
   "version": "1.0",
   "description": "Smart note-taking and suggestions for Google Docs.",
   "permissions": [
