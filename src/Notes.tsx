@@ -18,31 +18,86 @@ function tokenizeAndNormalize(text: string): Set<string> {
   return new Set(words.filter(word => word.length > 1 && !stopWords.has(word)));
 }
 
-function findSuggestions(
-  sentence: string,
-  savedNotes: SavedNote[]
-): SavedNote[] {
-  const searchTokens = tokenizeAndNormalize(sentence);
-  if (searchTokens.size === 0) {
-    return [];
+function computeIDF(savedNotes: SavedNote[]): Map<string, number> {
+  const df = new Map<string, number>();
+  const N = savedNotes.length;
+
+  // Count document frequency per token
+  for (const note of savedNotes) {
+    const tokens = tokenizeAndNormalize(note.content);
+    for (const t of tokens) {
+      df.set(t, (df.get(t) || 0) + 1);
+    }
   }
-  const scoredNotes = savedNotes.map(note => {
-    const noteContentLower = note.content.toLowerCase();
-    const noteTokens = tokenizeAndNormalize(noteContentLower);
-    let score = 0;
-    for (const token of searchTokens) {
-      if (noteTokens.has(token)) {
-        score += 1;
-      }
+
+  // Compute IDF
+  const idf = new Map<string, number>();
+  for (const [token, freq] of df.entries()) {
+    idf.set(token, Math.log((N + 1) / (freq + 1)) + 1);
+  }
+  return idf;
+}
+
+function findSuggestions(sentence: string, savedNotes: SavedNote[]): SavedNote[] {
+  const searchTokens = tokenizeAndNormalize(sentence);
+  if (searchTokens.size === 0) return [];
+
+  const idf = computeIDF(savedNotes);
+  const queryVec: Map<string, number> = new Map();
+
+  // Build TF-IDF vector for query
+  for (const t of searchTokens) {
+    const weight = idf.get(t) || 0;
+    queryVec.set(t, weight);
+  }
+
+  const queryNorm = Math.sqrt(
+    Array.from(queryVec.values()).reduce((sum, v) => sum + v * v, 0)
+  );
+
+  const scored = savedNotes.map(note => {
+    const noteTokens = tokenizeAndNormalize(note.content);
+    const tfMap: Map<string, number> = new Map();
+
+    // Build TF vector
+    for (const t of noteTokens) {
+      tfMap.set(t, (tfMap.get(t) || 0) + 1);
     }
-    if (noteContentLower.includes(sentence.toLowerCase())) {
-      score += 10;
+
+    // Build TF-IDF vector for note
+    const noteVec: Map<string, number> = new Map();
+    for (const [t, tf] of tfMap.entries()) {
+      noteVec.set(t, tf * (idf.get(t) || 0));
     }
+
+    const noteNorm = Math.sqrt(
+      Array.from(noteVec.values()).reduce((sum, v) => sum + v * v, 0)
+    );
+
+    // Compute cosine similarity
+    let dot = 0;
+    for (const t of searchTokens) {
+      dot += (queryVec.get(t) || 0) * (noteVec.get(t) || 0);
+    }
+
+    let score = dot / (queryNorm * noteNorm || 1);
+
+    // Boost if full sentence appears directly
+    if (note.content.toLowerCase().includes(sentence.toLowerCase())) {
+      score += 2.0;
+    }
+
+    // Recency boost
+    const age = Date.now() - note.timestamp;
+    const recencyWeight = 1 / (1 + age / (1000 * 60 * 60 * 24 * 30)); // 1 month half-life
+    score += 0.1 * recencyWeight;
+
     return { note, score };
   })
   .filter(item => item.score > 0)
   .sort((a, b) => b.score - a.score);
-  return scoredNotes.slice(0, 50).map(item => item.note);
+
+  return scored.map(s => s.note).slice(0, 50);
 }
 
 // --- React Component ---
@@ -129,8 +184,6 @@ export default function Notes() {
             setSuggestions(foundSuggestions);
             if (foundSuggestions.length > 0) {
               setStatusMessage(`Top suggestions for: "${sentence.slice(0, 50)}..."`);
-            } else {
-              setStatusMessage(`No suggestions found for: "${sentence.slice(0, 50)}..."`);
             }
           } else {
             setCurrentView('notes');
@@ -289,10 +342,16 @@ export default function Notes() {
       </div>
       
       <div className="saved-notes">
-        <h3 className="status-message">{
-          showLoading ? 'Loading...' : (currentView === 'notes' ? `All Notes (${savedNotes.length})` : statusMessage)
-        }</h3>
-        
+      <h3 className="status-message">
+        {showLoading
+          ? 'Loading notes...'
+          : currentView === 'notes'
+            ? `All Notes (${savedNotes.length})`
+            : suggestions.length > 0
+              ? statusMessage
+              : 'No suggestions found.'
+        }
+      </h3>
         {showLoading ? (
             <div className="no-notes-message">Loading notes from the cloud...</div>
         ) : (
