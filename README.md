@@ -1,6 +1,6 @@
 # Scrappr for Google Docs
 
-Scrappr for Google Docs is a browser extension that brings smart note-taking into your writing workflow. It allows you to save "ideas" or notes directly in your browser. As you write, you can get instant suggestions from your saved ideas, helping you connect concepts and find relevant information without leaving your document.
+Scrappr for Google Docs is a browser extension **for Chrome (no Brave support yet)** that brings smart note-taking into your writing workflow. It allows you to save "ideas" or notes directly in your browser. As you write, you can get instant suggestions from your saved ideas, helping you connect concepts and find relevant information without leaving your document.
 
 This extension uses a simple and reliable **clipboard-based approach**.
 

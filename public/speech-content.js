@@ -178,7 +178,11 @@
       })
       .catch(function (err) {
         console.warn('Scrappr voice: failed to save voice note', err);
-        setStatus('Could not save voice note to Scrappr.');
+        if (err && err.message === 'Extension context invalidated.') {
+          setStatus('Scrappr was just updated. Refresh this Google Docs tab and try again.');
+        } else {
+          setStatus('Could not save voice note to Scrappr.');
+        }
       });
   }
 
@@ -209,6 +213,8 @@
     console.warn('Scrappr voice: recognition error', event && event.error, event);
     if (event && event.error === 'not-allowed') {
       setStatus('Microphone access was blocked for docs.google.com. Check site settings.');
+    } else if (event && event.error === 'network') {
+      setStatus("The browser's speech service could not be reached. Check your network or privacy settings (for example, Shields in Brave).");
     } else {
       setStatus('There was a problem with speech recognition.');
     }
