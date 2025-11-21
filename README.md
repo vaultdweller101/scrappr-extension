@@ -6,14 +6,49 @@ This extension uses a simple and reliable **clipboard-based approach**.
 
 ## How to Use
 
-The extension is designed to be simple and intuitive.
+The extension is designed to be simple and intuitive. A typical workflow looks like this:
 
-1.  While writing in a Google Doc, highlight a word or sentence.
-2.  Copy the text to your clipboard (`Ctrl+C` or `Cmd+C`).
-3.  Click the Scrappr icon (the trash can) in your browser toolbar.
-4.  The popup will open with the instruction: "Highlight and copy the text, then open this extension, to see ideas suggestion."
-5.  The extension automatically reads your clipboard and shows you a list of relevant suggestions from your saved ideas.
-6.  You can also click "Show All Ideas" to manage your full list, or "New Idea" to save a new one.
+1. **Add a note by typing (desktop)**  
+   - Click the Scrappr icon in your browser toolbar to open the popup.  
+   - Click **New Idea**.  
+   - Type your idea or note into the textarea and click **Save**.  
+   - The note is stored in your Scrappr account (via Firebase), and will be available everywhere you use Scrappr.
+
+2. **Add a note using your voice (desktop, in Google Docs)**  
+   - Open a Google Doc (`https://docs.google.com/document/...`).  
+   - Look for the small **“Voice note”** pill in the bottom-right corner of the page (injected by the extension’s content script).  
+   - Click **Voice note** and grant microphone access when prompted.  
+   - Speak your idea; when you’re done, click **Voice note** again to stop.  
+   - The extension saves this transcript as a **pending voice note** in the background.  
+   - Now open the Scrappr popup: you’ll see a banner like *“You have 1 voice note ready to import.”*  
+   - Click **Use latest** to open a new note pre-filled with your transcript, then click **Save** to store it like any other note.
+
+3. **Add a note using the mobile app**  
+   - Open the Scrappr mobile app on your phone (signed in with the same account).  
+   - Tap **New Idea** (or the equivalent add button).  
+   - Type or dictate your note on mobile and save it.  
+   - Because notes are stored in the same cloud account, this new mobile note will also be available to the extension when you open the Scrappr popup in your browser.
+
+4. **See recommendations while writing**  
+   - In your Google Doc, highlight some text and copy it (`Ctrl+C` / `Cmd+C` or `Cmd+C` on macOS).  
+   - Click the Scrappr icon to open the popup.  
+   - Scrappr reads the clipboard text and shows you **suggested ideas** from your saved notes that match what you’re writing.  
+   - These suggestions can include notes you typed, notes imported from voice, and notes created on mobile.
+
+5. **View all notes**  
+   - In the popup, click **Show All Ideas**.  
+   - This shows a grid of all your saved notes for your account, most recent first.  
+   - Use this to browse or quickly scan everything you’ve captured across desktop and mobile.
+
+6. **Delete a note**  
+   - From **Show All Ideas**, find the note you want to remove.  
+   - Click the delete button on that note and confirm the deletion.  
+   - The note is removed from your Scrappr account in Firebase.
+
+7. **Confirm it’s gone everywhere (including mobile)**  
+   - Open the Scrappr mobile app and refresh your notes list.  
+   - The deleted note will no longer appear there.  
+   - Likewise, it will not be suggested by the browser extension anymore.
 
 ## Features
 
