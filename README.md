@@ -6,15 +6,37 @@ This extension uses a simple and reliable **clipboard-based approach**.
 
 ## How to Use
 
-The extension is designed to be simple and intuitive. A typical workflow looks like this:
+The extension is designed to be simple and intuitive. A typical **INTERACTION** looks like this:
 
-1. **Add a note by typing (desktop)**  
+For steps 1-3, run the following commands in an IDE terminal:
+
+1.  **Clone the repository:**
+    ```sh
+    git clone https://github.com/vaultdweller101/scrappr-extension.git
+    cd scrappr-extension
+    ```
+2.  **Install dependencies:**
+    ```sh
+    npm install
+    ```
+3.  **Build the extension:**
+    ```sh
+    npm run build
+    ```
+
+4.  Open Chrome and navigate to `chrome://extensions`.
+5.  In the top-right corner, turn on the **Developer mode** toggle.
+6.  A new menu will appear on the top-left. Click the **Load unpacked** button.
+7.  A file dialog will open. Navigate to **`scrappr-extension`** and select the **`dist`** directory.
+8.  The "Scrappr for Google Docs" extension will appear in your list.
+
+9. **Add a note by typing (desktop)**  
    - Click the Scrappr icon in your browser toolbar to open the popup.  
    - Click **New Idea**.  
    - Type your idea or note into the textarea and click **Save**.  
    - The note is stored in your Scrappr account (via Firebase), and will be available everywhere you use Scrappr.
 
-2. **Add a note using your voice (desktop, in Google Docs)**  
+10. **Add a note using your voice (desktop, in Google Docs)**  
    - Open a Google Doc (`https://docs.google.com/document/...`).  
    - Look for the small **“Voice note”** pill in the bottom-right corner of the page (injected by the extension’s content script).  
    - Click **Voice note** and grant microphone access when prompted.  
@@ -23,32 +45,29 @@ The extension is designed to be simple and intuitive. A typical workflow looks l
    - Now open the Scrappr popup: you’ll see a banner like *“You have 1 voice note ready to import.”*  
    - Click **Use latest** to open a new note pre-filled with your transcript, then click **Save** to store it like any other note.
 
-3. **Add a note using the mobile app**  
-   - Open the Scrappr mobile app on your phone (signed in with the same account).  
-   - Tap **New Idea** (or the equivalent add button).  
-   - Type or dictate your note on mobile and save it.  
+11. **Add a note using the mobile app**  
+   - Grab an Android phone.
+   - Open a browser and go to `https://github.com/vaultdweller101/scrappr-mobile`.
+   - Click the release under `Android APK for quick installation` and tap "download" when prompted.
+   - Tap the big plus sign in the bottom right.  
+   - Type your note on mobile and save it.  
    - Because notes are stored in the same cloud account, this new mobile note will also be available to the extension when you open the Scrappr popup in your browser.
 
-4. **See recommendations while writing**  
+12. **See recommendations while writing**  
    - In your Google Doc, highlight some text and copy it (`Ctrl+C` / `Cmd+C` or `Cmd+C` on macOS).  
    - Click the Scrappr icon to open the popup.  
    - Scrappr reads the clipboard text and shows you **suggested ideas** from your saved notes that match what you’re writing.  
    - These suggestions can include notes you typed, notes imported from voice, and notes created on mobile.
 
-5. **View all notes**  
+13. **View all notes**  
    - In the popup, click **Show All Ideas**.  
    - This shows a grid of all your saved notes for your account, most recent first.  
    - Use this to browse or quickly scan everything you’ve captured across desktop and mobile.
 
-6. **Delete a note**  
+14. **Delete a note**  
    - From **Show All Ideas**, find the note you want to remove.  
-   - Click the delete button on that note and confirm the deletion.  
+   - Click the red X on that note and confirm the deletion when prompted.  
    - The note is removed from your Scrappr account in Firebase.
-
-7. **Confirm it’s gone everywhere (including mobile)**  
-   - Open the Scrappr mobile app and refresh your notes list.  
-   - The deleted note will no longer appear there.  
-   - Likewise, it will not be suggested by the browser extension anymore.
 
 ## Features
 
