@@ -156,12 +156,13 @@ export default function Notes() {
     browser.storage.local.get('scrapprVoiceNotesPending')
       .then((result) => {
         const raw = (result as any).scrapprVoiceNotesPending;
+        console.log('Scrappr popup: loaded pending voice notes from storage', raw);
         if (Array.isArray(raw)) {
           setPendingVoiceNotes(raw as PendingVoiceNote[]);
         }
       })
       .catch((err) => {
-        console.warn('Could not load pending voice notes:', err);
+        console.warn('Scrappr popup: could not load pending voice notes:', err);
       });
   }, []);
 
@@ -175,9 +176,13 @@ export default function Notes() {
   };
 
   const handleUseLatestVoiceNote = async () => {
-    if (pendingVoiceNotes.length === 0) return;
+    if (pendingVoiceNotes.length === 0) {
+      console.log('Scrappr popup: handleUseLatestVoiceNote called with no pending notes');
+      return;
+    }
 
     const latest = [...pendingVoiceNotes].sort((a, b) => b.createdAt - a.createdAt)[0];
+    console.log('Scrappr popup: importing latest voice note', latest);
     setNewNoteContent(latest.text);
     setIsModalOpen(true);
 
@@ -186,8 +191,9 @@ export default function Notes() {
 
     try {
       await browser.storage.local.set({ scrapprVoiceNotesPending: remaining });
+      console.log('Scrappr popup: updated pending voice notes after import, remaining count', remaining.length);
     } catch (err) {
-      console.warn('Failed to update pending voice notes:', err);
+      console.warn('Scrappr popup: failed to update pending voice notes:', err);
     }
   };
 

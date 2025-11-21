@@ -52,6 +52,11 @@
   }
 
   var storage = getStorage();
+  if (!storage) {
+    console.warn('Scrappr voice: no storage provider available (browser.storage.local / chrome.storage.local missing).');
+  } else {
+    console.log('Scrappr voice: storage provider initialized.');
+  }
 
   // --- UI setup ---
 
@@ -144,25 +149,35 @@
 
   function saveTranscriptIfAny() {
     var text = transcript.trim();
-    if (!text || !storage) {
+    if (!text) {
+      console.log('Scrappr voice: saveTranscriptIfAny called with empty text, skipping.');
+      return;
+    }
+    if (!storage) {
+      console.warn('Scrappr voice: storage is not available, cannot save transcript of length', text.length);
       return;
     }
 
     var now = Date.now();
+    console.log('Scrappr voice: attempting to save transcript', { length: text.length, preview: text.slice(0, 80) });
 
     storage
       .get('scrapprVoiceNotesPending')
       .then(function (result) {
         var existing = result && result.scrapprVoiceNotesPending;
         var list = Array.isArray(existing) ? existing.slice() : [];
+        console.log('Scrappr voice: loaded existing pending voice notes', {
+          existingCount: Array.isArray(existing) ? existing.length : 0
+        });
         list.push({ id: now, createdAt: now, text: text });
         return storage.set({ scrapprVoiceNotesPending: list });
       })
       .then(function () {
+        console.log('Scrappr voice: successfully saved voice note with id', now);
         setStatus('Voice note saved for Scrappr. Open the popup to import it.');
       })
       .catch(function (err) {
-        console.warn('Scrappr: failed to save voice note', err);
+        console.warn('Scrappr voice: failed to save voice note', err);
         setStatus('Could not save voice note to Scrappr.');
       });
   }
@@ -170,6 +185,7 @@
   recognition.onstart = function () {
     isRecording = true;
     transcript = '';
+    console.log('Scrappr voice: recognition started');
     setRecordingVisual(true);
     setStatus('Listening… Speak clearly, then click again to save.');
   };
@@ -183,12 +199,14 @@
       }
     }
     if (!finalTranscript) return;
+    console.log('Scrappr voice: received final transcript chunk', finalTranscript);
     transcript += finalTranscript + ' ';
   };
 
   recognition.onerror = function (event) {
     isRecording = false;
     setRecordingVisual(false);
+    console.warn('Scrappr voice: recognition error', event && event.error, event);
     if (event && event.error === 'not-allowed') {
       setStatus('Microphone access was blocked for docs.google.com. Check site settings.');
     } else {
@@ -197,6 +215,7 @@
   };
 
   recognition.onend = function () {
+    console.log('Scrappr voice: recognition ended, transcript length', transcript.trim().length);
     if (isRecording) {
       // onend can fire even while recording; treat this as a stop
       isRecording = false;
@@ -230,6 +249,7 @@
 
   button.addEventListener('click', function (event) {
     event.preventDefault();
+    console.log('Scrappr voice: button click, isRecording =', isRecording);
     if (!isRecording) {
       setStatus('Requesting microphone permission for docs.google.com…');
       startRecording();
