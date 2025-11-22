@@ -77,6 +77,10 @@ For steps 1-3, run the following commands in an IDE terminal:
   * **Modern Tech Stack:** Built with React, TypeScript, and bundled with Vite.
   * **Cross-Browser Ready:** Uses the `webextension-polyfill` for compatibility with both Chrome and Firefox.
 
+## Recommendation Algorithm
+When you copy some text, Scrappr analyzes your highlight and ranks your saved notes by how relevant they are. It does this using a lightweight TF-IDF–based similarity model. First, the text is split into meaningful keywords (common filler words like the, and, my, etc. are removed). Each keyword is weighted based on how rare it is across all your notes — rare, specific words get higher weight. Then every note is converted into a vector of these weighted terms, and the algorithm computes a cosine similarity score between your highlighted text and each note. Notes that share more important keywords get higher scores. Finally, two extra boosts are added: a direct match boost if the note contains the highlighted text exactly, and a small recency boost so newer notes are ranked slightly higher. The top-scoring notes become your suggestions.
+
+
 ## Future Roadmap
 
 The current version of Scrappr saves all your ideas to your browser's local storage. The next major goal is to implement cloud-based syncing.
