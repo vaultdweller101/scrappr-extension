@@ -15,7 +15,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         'notes-main': resolve('src/notes-main.tsx'),
-        'background': resolve('src/background.ts')
+        'background': resolve('src/background.ts'),
       },
       output: {
         entryFileNames: '[name].js',
