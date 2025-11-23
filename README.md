@@ -71,7 +71,8 @@ For steps 1-3, run the following commands in an IDE terminal:
 
 ## Features
 
-  * **Persistent Idea Storage:** Save your notes and ideas directly in the browser. All ideas are saved to local extension storage (`browser.storage.local`) and persist across sessions.
+  * **Google Authentication:** Integrate Google Sign-In to allow users to connect their Google accounts.
+  * **Cloud Storage & Sync:** Store all ideas in a cloud database (like Firebase) linked to the user's account. This will automatically sync all saved ideas across different browsers and devices.
   * **Clipboard-Powered Suggestions:** Reliably get suggestions by reading from the clipboard (`navigator.clipboard.readText`). This requires the `clipboardRead` permission.
   * **Multiple Views:** Instantly toggle between "Suggestions" and "Show All Ideas".
   * **Modern Tech Stack:** Built with React, TypeScript, and bundled with Vite.
@@ -79,14 +80,6 @@ For steps 1-3, run the following commands in an IDE terminal:
 
 ## Recommendation Algorithm
 When you copy some text, Scrappr analyzes your highlight and ranks your saved notes by how relevant they are. It does this using a lightweight TF-IDF–based similarity model. First, the text is split into meaningful keywords (common filler words like the, and, my, etc. are removed). Each keyword is weighted based on how rare it is across all your notes — rare, specific words get higher weight. Then every note is converted into a vector of these weighted terms, and the algorithm computes a cosine similarity score between your highlighted text and each note. Notes that share more important keywords get higher scores. Finally, two extra boosts are added: a direct match boost if the note contains the highlighted text exactly, and a small recency boost so newer notes are ranked slightly higher. The top-scoring notes become your suggestions.
-
-
-## Future Roadmap
-
-The current version of Scrappr saves all your ideas to your browser's local storage. The next major goal is to implement cloud-based syncing.
-
-* **Google Authentication:** Integrate Google Sign-In to allow users to connect their Google accounts.
-* **Cloud Storage & Sync:** Store all ideas in a cloud database (like Firebase) linked to the user's account. This will automatically sync all saved ideas across different browsers and devices.
 
 ## Setup and Building (for Developers)
 

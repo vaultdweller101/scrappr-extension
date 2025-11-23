@@ -155,14 +155,13 @@ export default function Notes() {
     if (!user) {
       setSavedNotes([]);
       setDataLoading(false);
-      // Remove old browser.storage.local notes as they are now cloud-synced
-      browser.storage.local.remove('scrapprSavedNotes');
+      browser.storage.local.remove('cached_firestore_notes'); // Clean up on logout
       return;
     }
 
     // Query the current user's notes, ordered by createdAt
     const notesCollectionRef = collection(db, 'users', user.uid, 'notes');
-    const q = query(notesCollectionRef, orderBy('createdAt', 'desc'));
+    const q = query(notesCollectionRef, orderBy('timestamp', 'asc'));
 
     // Listen for real-time updates from Firestore
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -174,6 +173,16 @@ export default function Notes() {
       
       setSavedNotes(notesList);
       setDataLoading(false);
+
+      // Sync to Storage immediately whenever data changes
+      const storageData = { 'cached_firestore_notes': notesList };
+      if (typeof browser !== 'undefined') {
+          browser.storage.local.set(storageData).catch(console.error);
+      } else {
+          chrome.storage.local.set(storageData, () => {
+             if (chrome.runtime.lastError) console.error(chrome.runtime.lastError);
+          });
+      }
 
       // Recalculate suggestions every time notes update
       navigator.clipboard.readText()
@@ -255,16 +264,14 @@ export default function Notes() {
     if (!newNoteContent.trim() || !user) return; 
 
     try {
-        // 1. Save to Firestore (Existing Logic)
+        // Save to Firestore
         await addDoc(collection(db, 'users', user.uid, 'notes'), { 
             content: newNoteContent,
             timestamp: Date.now(),
             createdAt: serverTimestamp(),
         });
 
-        // ---------------------------------------------------------
-        // 2. NEW: Sync to Local Storage (Fixed for all browsers)
-        // ---------------------------------------------------------
+        // Sync to browser local storage
 
         const notesQuery = query(
             collection(db, 'users', user.uid, 'notes'),
