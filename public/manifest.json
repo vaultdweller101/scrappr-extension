@@ -21,9 +21,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://docs.google.com/*"],
-      "js": ["speech-content.js"],
-      "run_at": "document_idle"
+      "matches": ["https://docs.google.com/document/*"],
+      "js": ["speech-content.js", "continuous-popup.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
     }
   ],
   "content_security_policy": {

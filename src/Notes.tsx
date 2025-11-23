@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import browser from 'webextension-polyfill';
-import { collection, onSnapshot, orderBy, query, addDoc, serverTimestamp, deleteDoc, doc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, addDoc, getDocs, serverTimestamp, deleteDoc, doc, DocumentData } from 'firebase/firestore';
 import { db, useAuth } from './firebase';
 
 function tokenizeAndNormalize(text: string): Set<string> {
@@ -255,15 +255,56 @@ export default function Notes() {
     if (!newNoteContent.trim() || !user) return; 
 
     try {
-        // Save to: users -> [USER_ID] -> notes -> [NOTE_ID]
+        // 1. Save to Firestore (Existing Logic)
         await addDoc(collection(db, 'users', user.uid, 'notes'), { 
             content: newNoteContent,
             timestamp: Date.now(),
             createdAt: serverTimestamp(),
         });
 
+        // ---------------------------------------------------------
+        // 2. NEW: Sync to Local Storage (Fixed for all browsers)
+        // ---------------------------------------------------------
+
+        const notesQuery = query(
+            collection(db, 'users', user.uid, 'notes'),
+            orderBy('timestamp', 'asc') // Ensure order matches your UI
+        );
+        
+        const snapshot = await getDocs(notesQuery);
+        const updatedNotes = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        }));
+
+        // A. Define the data object
+        const storageData = { 'cached_firestore_notes': updatedNotes };
+
+        // B. Check which API is available and use the correct syntax
+        if (typeof browser !== 'undefined') {
+            // SCENARIO 1: Firefox / Standard WebExtension (Uses Promises, 1 Argument)
+            browser.storage.local.set(storageData)
+                .then(() => console.log('Success: Synced to local storage (Promise mode)'))
+                .catch((err) => console.error('Storage sync failed:', err));
+        } else {
+            // SCENARIO 2: Chrome / Edge / Brave (Uses Callbacks, 2 Arguments)
+            chrome.storage.local.set(storageData, () => {
+                // Check for runtime errors in Chrome
+                if (chrome.runtime.lastError) {
+                    console.error('Storage sync failed:', chrome.runtime.lastError);
+                } else {
+                    console.log('Success: Synced to local storage (Callback mode)');
+                }
+            });
+        }
+        // ---------------------------------------------------------
+
         setNewNoteContent('');
         closeNewNoteModal();
+
+        // Optional: If you have a local state for the list, update it here too
+        // setNotes(updatedNotes); 
+
     } catch (error) {
         console.error("Error adding document: ", error);
         alert('Failed to save note to cloud.');
