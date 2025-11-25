@@ -308,7 +308,7 @@ export default function Notes() {
               )}
               {notesToDisplay.map(note => renderNote(
                 note,
-                currentView === 'notes' ? deleteNote : undefined
+                deleteNote
               ))}
             </div>
         )}
