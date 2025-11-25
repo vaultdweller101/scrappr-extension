@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import Notes from './Notes';
 import './popup.css';
 
-// A simple wrapper to keep things clean
 function PopupApp() {
   return <Notes />;
 }

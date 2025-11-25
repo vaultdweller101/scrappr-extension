@@ -1,5 +1,3 @@
-// src/utils/algorithm.ts
-
 export interface SavedNote {
   id: string;
   content: string;

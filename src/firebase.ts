@@ -36,7 +36,6 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Standard auth state listener remains the primary source of truth
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -54,10 +53,7 @@ export function useAuth() {
         console.error("Auth failed:", response.error);
         alert(`Login failed: ${response.error}`);
       } else {
-        // Auth successful!
-        // The onAuthStateChanged listener in this file will automatically 
-        // fire because Firebase Auth state is shared/persisted in IndexedDB 
-        // across the extension.
+        // Auth success
       }
     } catch (error) {
       console.error("Messaging error:", error);

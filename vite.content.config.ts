@@ -12,7 +12,6 @@ export default defineConfig({
       },
       output: {
         entryFileNames: '[name].js',
-        // 'iife' bundles everything into one function. No imports = No errors.
         format: 'iife', 
       }
     }

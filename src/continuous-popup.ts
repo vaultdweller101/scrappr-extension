@@ -1,4 +1,3 @@
-// src/continuous-popup.ts
 import browser from 'webextension-polyfill';
 import { findSuggestions, SavedNote } from './utils/algorithm';
 
@@ -156,7 +155,6 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
               const contentDiv = popupElement.querySelector('#docs-popup-content');
               const headerDiv = popupElement.querySelector('#docs-popup-header');
               
-              // Cast the result to our expected type
               const notes = result[STORAGE_KEY] as SavedNote[];
 
               if (!notes || notes.length === 0) {

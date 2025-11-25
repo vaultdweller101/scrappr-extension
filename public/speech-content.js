@@ -7,7 +7,6 @@
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    // Browser does not support Web Speech in this context
     return;
   }
 
@@ -57,8 +56,6 @@
   } else {
     console.log('Scrappr voice: storage provider initialized.');
   }
-
-  // --- UI setup ---
 
   var root = document.createElement('div');
   root.id = 'scrappr-voice-widget-root';
@@ -136,8 +133,6 @@
       button.classList.remove('scrappr-voice-button-active');
     }
   }
-
-  // --- Speech recognition wiring ---
 
   var recognition = new SpeechRecognition();
   recognition.continuous = true;
@@ -227,7 +222,7 @@
       isRecording = false;
       setRecordingVisual(false);
     }
-    // When a session ends, attempt to save whatever we captured
+    // saving whatever we captured
     if (transcript.trim()) {
       saveTranscriptIfAny();
       transcript = '';

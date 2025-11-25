@@ -3,7 +3,6 @@ import { getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth
 import { getFirestore, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import browser from "webextension-polyfill";
 
-// Reuse your config
 const firebaseConfig = {
   apiKey: "AIzaSyCAbnTm4O4BHzz42y_z18XZwBIw-Y6-WWo",
   authDomain: "scrappr-a2f39.firebaseapp.com",
@@ -21,8 +20,6 @@ const db = getFirestore(app);
 // Listen for messages from the popup
 browser.runtime.onMessage.addListener((message: any, _sender: any) => {
   if (message.type === "START_AUTH") {
-    // In webextension-polyfill, we return the Promise directly
-    // instead of returning 'true' and using sendResponse.
     return handleAuth();
   }
   if (message.type === 'DELETE_NOTE') {
@@ -48,10 +45,8 @@ async function handleAuth() {
     
     const redirectUri = browser.identity.getRedirectURL();
     
-    // Added prompt=select_account to fix the macOS auto-close issue
     const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${clientId}&scope=${scopes.join(' ')}&response_type=token&redirect_uri=${redirectUri}&prompt=select_account`;
 
-    // This will keep running even if the popup closes!
     const responseUrl = await browser.identity.launchWebAuthFlow({
       url: authUrl,
       interactive: true
@@ -59,19 +54,16 @@ async function handleAuth() {
 
     if (!responseUrl) throw new Error("No response URL");
 
-    // Parse the token
     const urlParams = new URLSearchParams(responseUrl.split("#")[1]);
     const accessToken = urlParams.get("access_token");
 
     if (!accessToken) throw new Error("No access token");
 
-    // Sign in to Firebase (in the background)
     const credential = GoogleAuthProvider.credential(null, accessToken);
     await signInWithCredential(auth, credential);
 
     return { success: true };
   } catch (error: any) {
-    // Return the error object so the popup can handle it
     return { error: error.message || "Unknown error occurred" };
   }
 }
