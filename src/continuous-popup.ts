@@ -9,8 +9,12 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
   const STORAGE_KEY = 'cached_firestore_notes';
   const MESSAGE_ID = 'DOCS_TYPING_EVENT_TRIGGER';
   const POPUP_ID = 'docs-typing-manager-popup';
-  const HIDE_DELAY_MS = 5000;
+  // When set to 0, popup will remain visible until the user closes it.
+  const HIDE_DELAY_MS = 0;
   let popupTimeout: any = null;
+  const TOGGLE_ID = 'docs-popup-toggle';
+  const POPUP_ENABLED_KEY = 'scrappr_popup_enabled';
+  let isPopupEnabled = true; // default on
 
   // Utility function to convert URLs in text to clickable links 
   function convertUrlsToLinks(text: string): string {
@@ -65,15 +69,85 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
         popup.style.cssText = 'position: fixed; top: 70px; right: 20px; width: 320px; max-height: 85vh; overflow-y: auto; padding: 15px; background-color: #ffffff; color: #333; border-left: 5px solid #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2147483647; font-family: sans-serif; font-size: 13px; line-height: 1.4; pointer-events: auto; opacity: 0; transition: opacity 0.25s ease-in-out; border-radius: 4px; word-wrap: break-word; overflow-wrap: break-word;';
 
         popup.innerHTML = `
-            <div id="docs-popup-header" style="font-weight: bold; color: #3b82f6; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee;">
-                Latest Notes:
+          <div id="docs-popup-header" style="display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight: bold; color: #3b82f6; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee;">
+            <div id="docs-popup-title" style="flex:1">Latest Notes:</div>
+            <div style="flex-shrink:0; display:flex; gap:8px; align-items:center;">
+              <button id="docs-popup-close" aria-label="Close suggestions" title="Close" style="border:0; background:transparent; cursor:pointer; font-size:16px; line-height:1; color:#94a3b8;">×</button>
             </div>
-            <div id="docs-popup-content">
-                Loading...
-            </div>
+          </div>
+          <div id="docs-popup-content">
+            Loading...
+          </div>
         `;
         document.body.appendChild(popup);
         return popup;
+    }
+
+    // Create a persistent floating toggle button to enable/disable the popup
+    function getOrCreateToggle() {
+      let btn = document.getElementById(TOGGLE_ID) as HTMLButtonElement | null;
+      if (btn) return btn;
+
+      btn = document.createElement('button');
+      btn.id = TOGGLE_ID;
+      btn.setAttribute('aria-pressed', 'true');
+      btn.title = 'Toggle Relevant notes';
+      // reuse the same class as the voice button so visuals match
+      btn.className = 'scrappr-voice-button';
+      btn.style.fontSize = '12px';
+      btn.style.fontWeight = '600';
+      btn.style.display = 'inline-flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.textContent = 'Hide';
+
+      btn.onclick = async () => {
+        isPopupEnabled = !isPopupEnabled;
+        // update visual
+        setToggleVisual(btn, isPopupEnabled);
+        btn.setAttribute('aria-pressed', isPopupEnabled ? 'true' : 'false');
+        try {
+          await browser.storage.local.set({ [POPUP_ENABLED_KEY]: isPopupEnabled });
+        } catch (err) {
+          console.warn('Scrappr: could not persist popup toggle', err);
+        }
+        if (!isPopupEnabled) {
+          const popup = document.getElementById(POPUP_ID);
+          if (popup) (popup as HTMLElement).style.opacity = '0';
+        } else {
+          // show immediately when turning on
+          const popup = document.getElementById(POPUP_ID) || getOrCreatePopup();
+          updatePopupContent(popup as HTMLElement);
+          (popup as HTMLElement).style.opacity = '1';
+        }
+      };
+
+      // If the voice widget exists, insert next to its button for inline placement
+      const voiceRoot = document.getElementById('scrappr-voice-widget-root');
+      if (voiceRoot) {
+        const voiceBtn = voiceRoot.querySelector('.scrappr-voice-button');
+        if (voiceBtn && voiceBtn.parentElement) {
+          // place immediately after the voice button (side-by-side)
+          btn.style.marginLeft = '8px';
+          btn.style.padding = '6px 10px';
+          voiceBtn.insertAdjacentElement('afterend', btn);
+        } else {
+          document.body.appendChild(btn);
+        }
+      } else {
+        document.body.appendChild(btn);
+      }
+      return btn;
+    }
+
+    function setToggleVisual(btn: HTMLElement, enabled: boolean) {
+      if (enabled) {
+        btn.classList.add('scrappr-voice-button-active');
+        btn.textContent = 'Hide Notes';
+      } else {
+        btn.classList.remove('scrappr-voice-button-active');
+        btn.textContent = 'Show Notes';
+      }
     }
 
     function updatePopupContent(popupElement: HTMLElement) {
@@ -192,14 +266,62 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
     }
 
     function showPopup() {
+      if (!isPopupEnabled) return; // respect the toggle
+
       const popup = getOrCreatePopup();
       updatePopupContent(popup);
       popup.style.opacity = '1';
-      if (popupTimeout) clearTimeout(popupTimeout);
-      popupTimeout = setTimeout(() => {
-        popup.style.opacity = '0';
+      // If HIDE_DELAY_MS is 0 we don't auto-hide; otherwise use timeout
+      if (popupTimeout) {
+        clearTimeout(popupTimeout);
         popupTimeout = null;
-      }, HIDE_DELAY_MS);
+      }
+      if (HIDE_DELAY_MS > 0) {
+        popupTimeout = setTimeout(() => {
+          popup.style.opacity = '0';
+          popupTimeout = null;
+        }, HIDE_DELAY_MS);
+      }
+
+      // Wire up close button (idempotent)
+      const closeBtn = popup.querySelector('#docs-popup-close');
+      if (closeBtn) {
+        (closeBtn as HTMLElement).onclick = () => {
+          popup.style.opacity = '0';
+          // keep popup in DOM so it can be reopened by typing events
+        };
+      }
+
+      try {
+        const toggle = document.getElementById(TOGGLE_ID) || getOrCreateToggle();
+        if (toggle) {
+          setToggleVisual(toggle as HTMLElement, isPopupEnabled);
+          (toggle as HTMLElement).setAttribute('aria-pressed', isPopupEnabled ? 'true' : 'false');
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    // Initialize persisted toggle state and ensure toggle UI exists (top window only)
+    try {
+      browser.storage.local.get(POPUP_ENABLED_KEY).then((res) => {
+        const val = (res as any)[POPUP_ENABLED_KEY];
+        if (typeof val === 'boolean') {
+          isPopupEnabled = val;
+        } else {
+          isPopupEnabled = true;
+        }
+        const toggle = getOrCreateToggle();
+        setToggleVisual(toggle as HTMLElement, isPopupEnabled);
+        toggle.setAttribute('aria-pressed', isPopupEnabled ? 'true' : 'false');
+      }).catch(() => {
+        isPopupEnabled = true;
+        const toggle = getOrCreateToggle();
+        setToggleVisual(toggle as HTMLElement, true);
+        toggle.setAttribute('aria-pressed', 'true');
+      });
+    } catch (e) {
+      // ignore
     }
 
     window.addEventListener('message', (event) => {
@@ -218,6 +340,7 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
 
   window.addEventListener('keydown', handleInput as any, true);
   window.addEventListener('input', handleInput as any, true);
+  
 
   if (window === window.top) {
       const observer = new MutationObserver(() => {
