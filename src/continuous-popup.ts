@@ -19,13 +19,14 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
 
         popup = document.createElement('div');
         popup.id = POPUP_ID;
-        popup.style.cssText = 'position: fixed; top: 70px; right: 20px; width: 300px; max-height: 80vh; overflow-y: auto; padding: 15px; background-color: #ffffff; color: #333; border-left: 5px solid #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2147483647; font-family: sans-serif; font-size: 13px; line-height: 1.4; pointer-events: auto; opacity: 0; transition: opacity 0.25s ease-in-out; border-radius: 4px; word-wrap: break-word; overflow-wrap: break-word;';
+        // Increased height/max-height slightly to accommodate multiple notes
+        popup.style.cssText = 'position: fixed; top: 70px; right: 20px; width: 320px; max-height: 85vh; overflow-y: auto; padding: 15px; background-color: #ffffff; color: #333; border-left: 5px solid #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2147483647; font-family: sans-serif; font-size: 13px; line-height: 1.4; pointer-events: auto; opacity: 0; transition: opacity 0.25s ease-in-out; border-radius: 4px; word-wrap: break-word; overflow-wrap: break-word;';
 
         popup.innerHTML = `
-            <div id="docs-popup-header" style="font-weight: bold; color: #3b82f6; margin-bottom: 5px;">
-                Latest Note:
+            <div id="docs-popup-header" style="font-weight: bold; color: #3b82f6; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee;">
+                Latest Notes:
             </div>
-            <div id="docs-popup-content" style="font-style: italic; white-space: pre-wrap;">
+            <div id="docs-popup-content">
                 Loading...
             </div>
         `;
@@ -50,31 +51,84 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
               navigator.clipboard.readText()
                 .then(text => {
                     const query = text ? text.trim() : "";
-                    let recommended: SavedNote | null = null;
+                    let results: SavedNote[] = [];
+                    let isSuggestion = false;
 
                     if (query.length > 2) {
                        // USE THE SHARED ALGORITHM HERE
                        const suggestions = findSuggestions(query, notes);
                        if (suggestions.length > 0) {
-                           recommended = suggestions[0];
+                           // Take top 3 suggestions
+                           results = suggestions.slice(0, 3);
+                           isSuggestion = true;
                        }
                     }
 
-                    if (recommended && contentDiv && headerDiv) {
-                        headerDiv.textContent = "Suggested Idea (matches clipboard):";
-                        (headerDiv as HTMLElement).style.color = "#2563eb";
-                        contentDiv.textContent = '"' + recommended.content + '"';
-                    } else if (contentDiv && headerDiv) {
-                        headerDiv.textContent = "Latest Note:";
-                        (headerDiv as HTMLElement).style.color = "#64748b";
-                        const latest = notes[notes.length - 1];
-                        contentDiv.textContent = '"' + latest.content + '"';
+                    // Fallback to latest 3 notes if no suggestions found
+                    if (results.length === 0) {
+                        // Reverse to get newest first, then take top 3
+                        results = [...notes].reverse().slice(0, 3);
+                        isSuggestion = false;
+                    }
+
+                    // Update Header
+                    if (headerDiv) {
+                        if (isSuggestion) {
+                            headerDiv.textContent = "Top 3 Suggestions:";
+                            (headerDiv as HTMLElement).style.color = "#2563eb"; // Blue for suggestions
+                        } else {
+                            headerDiv.textContent = "Latest 3 Notes:";
+                            (headerDiv as HTMLElement).style.color = "#64748b"; // Gray for latest
+                        }
+                    }
+
+                    // Update Content Loop
+                    if (contentDiv) {
+                        contentDiv.innerHTML = ''; // Clear previous content
+                        
+                        results.forEach((note, index) => {
+                            const noteEl = document.createElement('div');
+                            noteEl.style.cssText = `
+                                margin-bottom: 8px; 
+                                padding-bottom: 8px; 
+                                ${index < results.length - 1 ? 'border-bottom: 1px dashed #e2e8f0;' : ''}
+                            `;
+                            
+                            // Add content
+                            const textEl = document.createElement('div');
+                            textEl.textContent = '"' + note.content + '"';
+                            textEl.style.fontStyle = 'italic';
+                            noteEl.appendChild(textEl);
+
+                            // Optional: Add date
+                            const dateEl = document.createElement('div');
+                            dateEl.textContent = new Date(note.timestamp).toLocaleDateString();
+                            dateEl.style.cssText = 'font-size: 10px; color: #94a3b8; margin-top: 2px; text-align: right;';
+                            noteEl.appendChild(dateEl);
+
+                            contentDiv.appendChild(noteEl);
+                        });
                     }
                 })
                 .catch(() => {
-                    if (contentDiv) {
-                        const latest = notes[notes.length - 1];
-                        contentDiv.textContent = '"' + latest.content + '"';
+                    // Fallback if clipboard read fails (e.g. permissions)
+                    if (contentDiv && headerDiv) {
+                        headerDiv.textContent = "Latest 3 Notes:";
+                        (headerDiv as HTMLElement).style.color = "#64748b";
+                        
+                        contentDiv.innerHTML = '';
+                        const latest3 = [...notes].reverse().slice(0, 3);
+                        
+                        latest3.forEach((note, index) => {
+                            const noteEl = document.createElement('div');
+                            noteEl.style.cssText = `
+                                margin-bottom: 8px; 
+                                padding-bottom: 8px; 
+                                ${index < latest3.length - 1 ? 'border-bottom: 1px dashed #e2e8f0;' : ''}
+                            `;
+                            noteEl.textContent = '"' + note.content + '"';
+                            contentDiv.appendChild(noteEl);
+                        });
                     }
                 });
           }).catch((err) => {
