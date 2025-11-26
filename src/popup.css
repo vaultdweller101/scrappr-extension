@@ -260,7 +260,7 @@ body {
   color: #0f172a;
 }
 
-/* --- ADD THIS FOR THE "NO NOTES" MESSAGE --- */
+/* No notes message */
 .no-notes-message {
   font-size: 0.875rem;
   color: #64748b; /* Same as the h3 text */
@@ -269,9 +269,22 @@ body {
   grid-column: 1 / -1; /* Make it span both columns */
 }
 
-/* --- ADD THIS FOR THE AUTHENTICATION BUTTON --- */
+/* Auth button */
 .notes-container > .modal-button.save-note {
   margin-top: 16px;
   padding: 10px 20px;
   width: 100%;
+}
+
+/* Note editor */
+
+.saved-note.clickable {
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.saved-note.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border-color: var(--accent);
 }

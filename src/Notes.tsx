@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import browser from 'webextension-polyfill';
-import { collection, onSnapshot, orderBy, query, addDoc, getDocs, serverTimestamp, deleteDoc, doc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, addDoc, getDocs, serverTimestamp, deleteDoc, updateDoc, doc, DocumentData } from 'firebase/firestore';
 import { db, useAuth } from './firebase';
 import { SavedNote, findSuggestions } from './utils/algorithm';
 
@@ -10,9 +10,14 @@ interface PendingVoiceNote {
   text: string;
 }
 
-function renderNote(note: SavedNote, deleteNote?: (id: string) => void) {
+// 1. Update renderNote to accept an onEdit callback
+function renderNote(note: SavedNote, onEdit: (note: SavedNote) => void, deleteNote?: (id: string) => void) {
   return (
-    <div key={note.id} className="saved-note">
+    <div 
+      key={note.id} 
+      className="saved-note clickable" 
+      onClick={() => onEdit(note)} // Click to edit
+    >
       <div className="note-content">
         {note.content}
       </div>
@@ -22,7 +27,10 @@ function renderNote(note: SavedNote, deleteNote?: (id: string) => void) {
         </div>
         {deleteNote && (
           <button 
-            onClick={() => deleteNote(note.id)}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent opening edit modal when deleting
+              deleteNote(note.id);
+            }}
             className="delete-note"
             title="Delete this note"
             aria-label="Delete note"
@@ -39,38 +47,37 @@ export default function Notes() {
   const { user, loading: authLoading, signIn, logout } = useAuth();
   const [savedNotes, setSavedNotes] = useState<SavedNote[]>([]);
   const [suggestions, setSuggestions] = useState<SavedNote[]>([]);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null); // 2. Track editing ID
+
   const [currentView, setCurrentView] = useState<'suggestions' | 'notes'>('suggestions');
   const [statusMessage, setStatusMessage] = useState('Loading notes...');
-  const [dataLoading, setDataLoading] = useState(true); // Separate loading state for notes
+  const [dataLoading, setDataLoading] = useState(true);
   const [pendingVoiceNotes, setPendingVoiceNotes] = useState<PendingVoiceNote[]>([]);
 
   useEffect(() => {
-    // Stop listening or clear notes if no user is logged in
     if (!user) {
       setSavedNotes([]);
       setDataLoading(false);
-      browser.storage.local.remove('cached_firestore_notes'); // Clean up on logout
+      browser.storage.local.remove('cached_firestore_notes'); 
       return;
     }
 
-    // Query the current user's notes, ordered by createdAt
     const notesCollectionRef = collection(db, 'users', user.uid, 'notes');
     const q = query(notesCollectionRef, orderBy('timestamp', 'asc'));
 
-    // Listen for real-time updates from Firestore
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notesList = snapshot.docs.map(doc => ({
         id: doc.id,
         content: doc.data().content,
-        timestamp: doc.data().timestamp || Date.now(), // Fallback
+        timestamp: doc.data().timestamp || Date.now(),
       })) as SavedNote[];
       
       setSavedNotes(notesList);
       setDataLoading(false);
 
-      // Sync to Storage immediately whenever data changes
       const storageData = { 'cached_firestore_notes': notesList };
       if (typeof browser !== 'undefined') {
           browser.storage.local.set(storageData).catch(console.error);
@@ -80,7 +87,6 @@ export default function Notes() {
           });
       }
 
-      // Recalculate suggestions every time notes update
       navigator.clipboard.readText()
         .then((clipboardText) => {
           const sentence = clipboardText ? clipboardText.trim() : "";
@@ -108,13 +114,12 @@ export default function Notes() {
     });
 
     return () => unsubscribe();
-  }, [user]); // Depend on user state
+  }, [user]);
 
   useEffect(() => {
     browser.storage.local.get('scrapprVoiceNotesPending')
       .then((result) => {
         const raw = (result as any).scrapprVoiceNotesPending;
-        console.log('Scrappr popup: loaded pending voice notes from storage', raw);
         if (Array.isArray(raw)) {
           setPendingVoiceNotes(raw as PendingVoiceNote[]);
         }
@@ -126,22 +131,28 @@ export default function Notes() {
 
   const openNewNoteModal = () => {
     setNewNoteContent('');
+    setEditingNoteId(null); // Ensure we are in create mode
+    setIsModalOpen(true);
+  };
+
+  // 3. Add handler to open modal in edit mode
+  const handleEditNote = (note: SavedNote) => {
+    setNewNoteContent(note.content);
+    setEditingNoteId(note.id);
     setIsModalOpen(true);
   };
 
   const closeNewNoteModal = () => {
     setIsModalOpen(false);
+    setEditingNoteId(null); // Reset on close
   };
 
   const handleUseLatestVoiceNote = async () => {
-    if (pendingVoiceNotes.length === 0) {
-      console.log('Scrappr popup: handleUseLatestVoiceNote called with no pending notes');
-      return;
-    }
+    if (pendingVoiceNotes.length === 0) return;
 
     const latest = [...pendingVoiceNotes].sort((a, b) => b.createdAt - a.createdAt)[0];
-    console.log('Scrappr popup: importing latest voice note', latest);
     setNewNoteContent(latest.text);
+    setEditingNoteId(null); // Treating imported voice note as a new note
     setIsModalOpen(true);
 
     const remaining = pendingVoiceNotes.filter((note) => note.id !== latest.id);
@@ -149,29 +160,36 @@ export default function Notes() {
 
     try {
       await browser.storage.local.set({ scrapprVoiceNotesPending: remaining });
-      console.log('Scrappr popup: updated pending voice notes after import, remaining count', remaining.length);
     } catch (err) {
       console.warn('Scrappr popup: failed to update pending voice notes:', err);
     }
   };
 
-  // Save note to Firestore
+  // 4. Update save handler to handle both Create and Update
   const handleSaveNote = async () => {
     if (!newNoteContent.trim() || !user) return; 
 
     try {
-        // Save to Firestore
-        await addDoc(collection(db, 'users', user.uid, 'notes'), { 
+        if (editingNoteId) {
+          // --- UPDATE ---
+          const noteRef = doc(db, 'users', user.uid, 'notes', editingNoteId);
+          await updateDoc(noteRef, {
             content: newNoteContent,
-            timestamp: Date.now(),
-            createdAt: serverTimestamp(),
-        });
+            timestamp: Date.now(), // Update timestamp to move it to top/bottom depending on sort
+          });
+        } else {
+          // --- CREATE ---
+          await addDoc(collection(db, 'users', user.uid, 'notes'), { 
+              content: newNoteContent,
+              timestamp: Date.now(),
+              createdAt: serverTimestamp(),
+          });
+        }
 
-        // Sync to browser local storage
-
+        // Sync to browser local storage (Optimistic UI handles the rest via onSnapshot, but this keeps cache fresh)
         const notesQuery = query(
             collection(db, 'users', user.uid, 'notes'),
-            orderBy('timestamp', 'asc') // Ensure order matches your UI
+            orderBy('timestamp', 'asc')
         );
         
         const snapshot = await getDocs(notesQuery);
@@ -180,41 +198,25 @@ export default function Notes() {
             ...doc.data() 
         }));
 
-        // A. Define the data object
         const storageData = { 'cached_firestore_notes': updatedNotes };
 
-        // B. Check which API is available and use the correct syntax
         if (typeof browser !== 'undefined') {
-            // SCENARIO 1: Firefox / Standard WebExtension (Uses Promises, 1 Argument)
-            browser.storage.local.set(storageData)
-                .then(() => console.log('Success: Synced to local storage (Promise mode)'))
-                .catch((err) => console.error('Storage sync failed:', err));
+            browser.storage.local.set(storageData).catch((err) => console.error('Storage sync failed:', err));
         } else {
-            // SCENARIO 2: Chrome / Edge / Brave (Uses Callbacks, 2 Arguments)
             chrome.storage.local.set(storageData, () => {
-                // Check for runtime errors in Chrome
-                if (chrome.runtime.lastError) {
-                    console.error('Storage sync failed:', chrome.runtime.lastError);
-                } else {
-                    console.log('Success: Synced to local storage (Callback mode)');
-                }
+                if (chrome.runtime.lastError) console.error(chrome.runtime.lastError);
             });
         }
-        // ---------------------------------------------------------
 
         setNewNoteContent('');
         closeNewNoteModal();
 
-        // Optional: If you have a local state for the list, update it here too
-        // setNotes(updatedNotes); 
-
     } catch (error) {
-        console.error("Error adding document: ", error);
+        console.error("Error saving document: ", error);
         alert('Failed to save note to cloud.');
     }
   };
 
-  // Delete note from Firestore
   const deleteNote = async (noteId: string) => {
     if (!window.confirm('Are you sure you want to delete this note?')) {
       return;
@@ -223,7 +225,6 @@ export default function Notes() {
 
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'notes', noteId));
-      // The onSnapshot listener will handle state update automatically
     } catch (error) {
       console.error("Error deleting document: ", error);
       alert('Failed to delete note from cloud.');
@@ -237,7 +238,6 @@ export default function Notes() {
     return <div className="notes-container" style={{ textAlign: 'center', padding: '20px' }}>Authenticating...</div>;
   }
 
-  // Login Screen when unauthenticated
   if (!user) {
     return (
       <div className="notes-container" style={{ textAlign: 'center', padding: '20px' }}>
@@ -249,7 +249,6 @@ export default function Notes() {
     );
   }
 
-  // Logged in view
   return (
     <div className="notes-container">
       <p className="instruction-text">
@@ -306,8 +305,10 @@ export default function Notes() {
               {notesToDisplay.length === 0 && currentView === 'notes' && (
                 <p className="no-notes-message">No notes saved yet. Click "New Idea" to add one!</p>
               )}
+              {/* 5. Pass handleEditNote to renderNote */}
               {notesToDisplay.map(note => renderNote(
                 note,
+                handleEditNote,
                 deleteNote
               ))}
             </div>
@@ -317,7 +318,7 @@ export default function Notes() {
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeNewNoteModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>New Note</h3>
+            <h3>{editingNoteId ? "Edit Note" : "New Note"}</h3>
             <textarea
               className="modal-textarea"
               value={newNoteContent}
@@ -330,7 +331,7 @@ export default function Notes() {
                 Cancel
               </button>
               <button onClick={handleSaveNote} className="modal-button save-note">
-                Save
+                {editingNoteId ? "Update" : "Save"}
               </button>
             </div>
           </div>
