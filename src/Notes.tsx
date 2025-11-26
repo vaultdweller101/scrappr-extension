@@ -179,6 +179,24 @@ export default function Notes() {
       });
   }, []);
 
+  // If an external edit was requested (from the content script), open the modal with that note
+  useEffect(() => {
+    browser.storage.local.get('scrappr_edit_note')
+      .then((result) => {
+        const payload = (result as any).scrappr_edit_note;
+        if (payload && payload.id) {
+          setNewNoteContent(payload.content || '');
+          setEditingNoteId(payload.id);
+          setIsModalOpen(true);
+          // clear the pending edit so it doesn't reopen again
+          try { browser.storage.local.remove('scrappr_edit_note'); } catch (e) { /* ignore */ }
+        }
+      })
+      .catch((err) => {
+        // ignore
+      });
+  }, []);
+
   const openNewNoteModal = () => {
     setNewNoteContent('');
     setEditingNoteId(null); // Ensure we are in create mode

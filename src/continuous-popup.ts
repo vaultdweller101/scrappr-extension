@@ -211,9 +211,48 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
                             `;
                             
                             const textEl = document.createElement('div');
-                            textEl.innerHTML = '"' + convertUrlsToLinks(note.content) + '"';
-                            textEl.style.fontStyle = 'italic';
-                            noteEl.appendChild(textEl);
+                          textEl.innerHTML = '"' + convertUrlsToLinks(note.content) + '"';
+                          textEl.style.fontStyle = 'italic';
+                          noteEl.appendChild(textEl);
+
+                          // Actions (Delete only)
+                          const actionsEl = document.createElement('div');
+                          actionsEl.style.cssText = 'margin-top:6px; display:flex; gap:8px; justify-content:flex-end;';
+
+                          const deleteBtn = document.createElement('button');
+                          deleteBtn.textContent = 'Delete';
+                          deleteBtn.title = 'Delete this note';
+                          deleteBtn.style.cssText = 'font-size:12px; padding:4px 8px; border-radius:6px; border:1px solid #fde68a; background:#fff; cursor:pointer; color:#b45309;';
+                            deleteBtn.onclick = async (e) => {
+                                e.stopPropagation();
+                                if (!window.confirm('Delete this note?')) return;
+                                try {
+                                    await browser.runtime.sendMessage({ type: 'DELETE_NOTE', id: note.id });
+                                    // After delete succeeds, fetch fresh notes from storage and refresh top 3
+                                    try {
+                                        const freshData = await browser.storage.local.get(STORAGE_KEY);
+                                        const freshNotes = freshData[STORAGE_KEY] as SavedNote[];
+                                        const clipboardText = await navigator.clipboard.readText();
+                                        const sentence = clipboardText ? clipboardText.trim() : "";
+                                        if (sentence.length > 2 && freshNotes && freshNotes.length > 0) {
+                                            const updatedSuggestions = findSuggestions(sentence, freshNotes);
+                                            // Get top 3 from the fresh suggestions
+                                            const top3 = updatedSuggestions.slice(0, 3);
+                                            if (top3.length > 0) {
+                                                // Rebuild entire popup content with the fresh top 3
+                                                updatePopupContent(popupElement);
+                                            }
+                                        }
+                                    } catch (refreshErr) {
+                                        console.warn('Could not refresh suggestions after delete:', refreshErr);
+                                    }
+                                } catch (err) {
+                                    console.warn('Could not delete note:', err);
+                                    alert('Failed to delete note.');
+                                }
+                            };
+                          actionsEl.appendChild(deleteBtn);
+                          noteEl.appendChild(actionsEl);
 
                             // Optional: Add date
                             const dateEl = document.createElement('div');

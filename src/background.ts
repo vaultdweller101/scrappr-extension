@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { getFirestore, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import browser from "webextension-polyfill";
 
 // Reuse your config
@@ -15,6 +16,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Listen for messages from the popup
 browser.runtime.onMessage.addListener((message: any, _sender: any) => {
@@ -22,6 +24,15 @@ browser.runtime.onMessage.addListener((message: any, _sender: any) => {
     // In webextension-polyfill, we return the Promise directly
     // instead of returning 'true' and using sendResponse.
     return handleAuth();
+  }
+  if (message.type === 'DELETE_NOTE') {
+    return handleDelete(message.id);
+  }
+  if (message.type === 'UPDATE_NOTE') {
+    return handleUpdate(message.id, message.content);
+  }
+  if (message.type === 'OPEN_POPUP') {
+    return handleOpenPopup();
   }
   // Return undefined for messages we don't handle
   return undefined;
@@ -62,5 +73,64 @@ async function handleAuth() {
   } catch (error: any) {
     // Return the error object so the popup can handle it
     return { error: error.message || "Unknown error occurred" };
+  }
+}
+
+async function handleDelete(id: string) {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not authenticated');
+    const noteRef = doc(db, 'users', user.uid, 'notes', id);
+    await deleteDoc(noteRef);
+    
+    // Also remove from the cached storage so the popup sees the updated list
+    try {
+      const cached = await browser.storage.local.get('cached_firestore_notes');
+      const notes = (cached as any).cached_firestore_notes;
+      if (Array.isArray(notes)) {
+        const filtered = notes.filter((n: any) => n.id !== id);
+        await browser.storage.local.set({ cached_firestore_notes: filtered });
+      }
+    } catch (cacheErr) {
+      console.warn('Could not update cache after delete:', cacheErr);
+    }
+    
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || String(err) };
+  }
+}
+
+async function handleUpdate(id: string, content: string) {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not authenticated');
+    const noteRef = doc(db, 'users', user.uid, 'notes', id);
+    await updateDoc(noteRef, { content, timestamp: Date.now() });
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || String(err) };
+  }
+}
+
+async function handleOpenPopup() {
+  try {
+    const popupUrl = browser.runtime.getURL('notes.html');
+    if (browser.tabs && browser.tabs.query) {
+      const tabs = await browser.tabs.query({ url: popupUrl });
+      if (tabs.length > 0) {
+        // Popup tab already exists; focus it
+        await browser.tabs.update(tabs[0].id, { active: true });
+      } else {
+        // Open new popup tab
+        await browser.tabs.create({ url: popupUrl });
+      }
+    } else {
+      // Fallback: open as window
+      window.open(popupUrl, '_blank', 'width=400,height=600');
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || String(err) };
   }
 }
