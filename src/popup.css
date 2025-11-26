@@ -90,6 +90,18 @@ body {
   word-wrap: break-word;
 }
 
+.note-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-all;
+}
+
+.note-link:hover {
+  color: #2563eb;
+  text-decoration: none;
+}
+
 .note-actions {
   display: flex;
   align-items: center;

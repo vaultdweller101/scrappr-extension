@@ -10,6 +10,56 @@ interface PendingVoiceNote {
   text: string;
 }
 
+// Utility function to convert URLs in text to clickable links
+function renderTextWithLinks(text: string) {
+  // Regex to match URLs (http://, https://, www., and plain domains)
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/g;
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    // Process the URL
+    let url = match[0];
+    let href = url;
+
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      href = url.startsWith('www.') ? `https://${url}` : `https://${url}`;
+    }
+
+    // Create clickable link
+    parts.push(
+      <a
+        key={key++}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()} // Prevent triggering edit modal
+        className="note-link"
+      >
+        {url}
+      </a>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  // If no URLs found, return original text
+  return parts.length > 0 ? parts : text;
+}
+
 // 1. Update renderNote to accept an onEdit callback
 function renderNote(note: SavedNote, onEdit: (note: SavedNote) => void, deleteNote?: (id: string) => void) {
   return (
@@ -19,7 +69,7 @@ function renderNote(note: SavedNote, onEdit: (note: SavedNote) => void, deleteNo
       onClick={() => onEdit(note)} // Click to edit
     >
       <div className="note-content">
-        {note.content}
+        {renderTextWithLinks(note.content)}
       </div>
       <div className="note-actions">
         <div className="note-date">

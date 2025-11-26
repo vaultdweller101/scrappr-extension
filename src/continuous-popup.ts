@@ -12,6 +12,48 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
   const HIDE_DELAY_MS = 5000;
   let popupTimeout: any = null;
 
+  // Utility function to convert URLs in text to clickable links 
+  function convertUrlsToLinks(text: string): string {
+    const escapeHtml = (str: string) => {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    };
+
+    // Regex to match URLs (http://, https://, www., and plain domains)
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/g;
+    const parts: string[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = urlRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(escapeHtml(text.substring(lastIndex, match.index)));
+      }
+
+      const url = match[0];
+      let href = url;
+
+      // Add protocol if missing
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        href = `https://${url}`;
+      }
+
+      // Create clickable link
+      const escapedUrl = escapeHtml(url);
+      parts.push(`<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${escapedUrl}</a>`);
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(escapeHtml(text.substring(lastIndex)));
+    }
+
+    // If no URLs found, return escaped original text
+    return parts.length > 0 ? parts.join('') : escapeHtml(text);
+  }
+
   if (window === window.top) {
     function getOrCreatePopup() {
         let popup = document.getElementById(POPUP_ID);
@@ -94,9 +136,8 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
                                 ${index < results.length - 1 ? 'border-bottom: 1px dashed #e2e8f0;' : ''}
                             `;
                             
-                            // Add content
                             const textEl = document.createElement('div');
-                            textEl.textContent = '"' + note.content + '"';
+                            textEl.innerHTML = '"' + convertUrlsToLinks(note.content) + '"';
                             textEl.style.fontStyle = 'italic';
                             noteEl.appendChild(textEl);
 
@@ -126,7 +167,18 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
                                 padding-bottom: 8px; 
                                 ${index < latest3.length - 1 ? 'border-bottom: 1px dashed #e2e8f0;' : ''}
                             `;
-                            noteEl.textContent = '"' + note.content + '"';
+                            
+                            // Add content with clickable links
+                            const textEl = document.createElement('div');
+                            textEl.innerHTML = '"' + convertUrlsToLinks(note.content) + '"';
+                            textEl.style.fontStyle = 'italic';
+                            noteEl.appendChild(textEl);
+
+                            const dateEl = document.createElement('div');
+                            dateEl.textContent = new Date(note.timestamp).toLocaleDateString();
+                            dateEl.style.cssText = 'font-size: 10px; color: #94a3b8; margin-top: 2px; text-align: right;';
+                            noteEl.appendChild(dateEl);
+                            
                             contentDiv.appendChild(noteEl);
                         });
                     }
