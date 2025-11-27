@@ -1,6 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithCredential, signOut } from "firebase/auth";
+
 import { getFunctions, httpsCallable } from "firebase/functions"; // Import Functions
+import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import browser from "webextension-polyfill";
 
 const firebaseConfig = {
@@ -16,6 +18,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const functions = getFunctions(app, "us-central1"); // Initialize Functions
+const db = getFirestore(app);
+
+// Ensure user is signed out whenever the extension is installed or reloaded in dev
+browser.runtime.onInstalled.addListener(() => {
+  signOut(auth).catch((err) => {
+    console.warn("Scrappr: auto sign-out on install/update failed", err);
+  });
+});
 
 browser.runtime.onMessage.addListener((message: any, _sender: any) => {
   if (message.type === "START_AUTH") {
@@ -24,6 +34,9 @@ browser.runtime.onMessage.addListener((message: any, _sender: any) => {
   // New handler for transcription
   if (message.type === "TRANSCRIBE_AUDIO") {
     return handleTranscription(message.audioBase64);
+  }
+  if (message.type === "SAVE_TRANSCRIPT_NOTE") {
+    return saveTranscriptNote(message.text);
   }
   return undefined;
 });
@@ -47,6 +60,27 @@ async function handleTranscription(base64String: string) {
   } catch (error: any) {
     console.error("Background transcription error:", error);
     return { error: error.message || "Transcription failed." };
+  }
+}
+
+async function saveTranscriptNote(text: string) {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      return { error: "You must be signed in to the extension first." };
+    }
+
+    const notesCollection = collection(db, "users", user.uid, "notes");
+    await addDoc(notesCollection, {
+      content: text,
+      timestamp: Date.now(),
+      createdAt: serverTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Background save note error:", error);
+    return { error: error.message || "Failed to save note." };
   }
 }
 

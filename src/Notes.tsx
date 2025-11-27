@@ -116,7 +116,7 @@ export default function Notes() {
     }
 
     const notesCollectionRef = collection(db, 'users', user.uid, 'notes');
-    const q = query(notesCollectionRef, orderBy('timestamp', 'asc'));
+    const q = query(notesCollectionRef, orderBy('timestamp', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notesList = snapshot.docs.map(doc => ({
