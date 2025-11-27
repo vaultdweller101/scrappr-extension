@@ -226,6 +226,13 @@ import { findSuggestions, SavedNote } from './utils/algorithm';
                                 if (!window.confirm('Delete this note?')) return;
                                 try {
                                     await browser.runtime.sendMessage({ type: 'DELETE_NOTE', id: note.id });
+
+                                    // Manually update local cache so UI refreshes immediately
+                                    const storageData = await browser.storage.local.get(STORAGE_KEY);
+                                    const currentNotes = (storageData[STORAGE_KEY] as SavedNote[]) || [];
+                                    const updatedNotes = currentNotes.filter(n => n.id !== note.id);
+                                    await browser.storage.local.set({ [STORAGE_KEY]: updatedNotes });
+
                                     // After delete succeeds, fetch fresh notes from storage and refresh top 3
                                     try {
                                         const freshData = await browser.storage.local.get(STORAGE_KEY);

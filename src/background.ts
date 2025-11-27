@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithCredential, signOut } from "firebase/auth";
 
 import { getFunctions, httpsCallable } from "firebase/functions"; // Import Functions
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
 import browser from "webextension-polyfill";
 
 const firebaseConfig = {
@@ -38,6 +38,10 @@ browser.runtime.onMessage.addListener((message: any, _sender: any) => {
   if (message.type === "SAVE_TRANSCRIPT_NOTE") {
     return saveTranscriptNote(message.text);
   }
+  if (message.type === "DELETE_NOTE") {
+    return handleDeleteNote(message.id);
+  }
+
   return undefined;
 });
 
@@ -114,5 +118,20 @@ async function handleAuth() {
     return { success: true };
   } catch (error: any) {
     return { error: error.message || "Unknown error occurred" };
+  }
+}
+
+async function handleDeleteNote(noteId: string) {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      return { error: "You must be signed in to delete notes." };
+    }
+    // Delete from Firestore
+    await deleteDoc(doc(db, "users", user.uid, "notes", noteId));
+    return { success: true };
+  } catch (error: any) {
+    console.error("Background delete note error:", error);
+    return { error: error.message || "Failed to delete note." };
   }
 }
