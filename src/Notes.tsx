@@ -106,8 +106,7 @@ export default function Notes() {
   const [tags, setTags] = useState<string[]>([]);
   const [allUserTags, setAllUserTags] = useState<string[]>([]);
   const [currentTagInput, setCurrentTagInput] = useState("");
-  const [showTagFilter, setShowTagFilter] = useState(true);
-  const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [filterTags, setFilterTags] = useState<string[]>([]);
 
   const [currentView, setCurrentView] = useState<'suggestions' | 'notes'>('suggestions');
   const [statusMessage, setStatusMessage] = useState('Loading notes...');
@@ -163,6 +162,20 @@ export default function Notes() {
     } catch (error) {
       console.error("Error deleting global tag:", error);
     }
+  };
+
+  const toggleFilterTag = (tag: string) => {
+    setFilterTags(prevTags => {
+      if (prevTags && prevTags.includes(tag)) {
+        // If tag is already selected, remove it
+        return prevTags.filter(t => t !== tag);
+      } else if (prevTags) {
+        // If tag is not selected, add it
+        return [...prevTags, tag];
+      } else {
+        return [...tag];
+      }
+    });
   };
   
   useEffect(() => {
@@ -362,10 +375,19 @@ export default function Notes() {
     }
   };
 
-  let notesToDisplay = currentView === 'suggestions' ? suggestions : savedNotes;
-  if (currentView === 'notes' && filterTag) {
-    notesToDisplay = notesToDisplay.filter(note => note.tags && note.tags.includes(filterTag));
-  }
+  const notesToDisplay = currentView === 'suggestions' ? suggestions : savedNotes.filter(note => {
+  // 1. If no tags are selected, show everything
+    if (!filterTags || filterTags.length === 0) return true;
+
+  // 2. If note has no tags, hide it (since we have a filter active)
+    if (!note.tags || !Array.isArray(note.tags)) return false;
+
+  // 3. Check for overlap: Does the note contain AT LEAST ONE of the selected filter tags?
+    return note.tags.some(noteTag => filterTags.includes(noteTag));
+  });
+  // if (currentView === 'notes' && filterTag) {
+  //   notesToDisplay = notesToDisplay.filter(note => note.tags && note.tags.includes(filterTag));
+  // }
   const showLoading = authLoading || (user && dataLoading);
   
   if (authLoading) {
@@ -423,8 +445,8 @@ export default function Notes() {
         {showLoading
         ? 'Loading notes...'
         : currentView === 'notes'
-          ? filterTag 
-              ? `Tagged: #${filterTag} (${notesToDisplay.length})`
+          ? (filterTags && filterTags.length > 0)
+              ? `Tagged (${notesToDisplay.length})`
               : `All Notes (${savedNotes.length})`
           : suggestions.length > 0
               ? statusMessage
@@ -457,41 +479,43 @@ export default function Notes() {
             <div className="filter-tags-list">
               <div className="tag-row">
                 <button 
-                  onClick={() => setFilterTag(null)}
+                  onClick={() => setFilterTags([])}
                   style={{ 
-                    fontWeight: filterTag === null ? 'bold' : 'normal',
-                    color: filterTag === null ? '#007bff' : 'inherit'
+                    fontWeight: filterTags.length === 0  ? 'bold' : 'normal',
+                    color: filterTags.length === 0 ? '#007bff' : 'inherit'
                   }}
                 >
                   All Notes
                 </button>
               </div>
 
-              {allUserTags.map(tag => (
-                <div key={tag} className="tag-row">
-                  
-                  <button 
-                    onClick={() => setFilterTag(tag)}
-                    style={{
-                      fontWeight: filterTag === tag ? 'bold' : 'normal',
-                      color: filterTag === tag ? '#007bff' : 'inherit',
-                      textTransform: 'capitalize' 
-                    }}
-                  >
-                    #{tag}
-                  </button>
-                  
-                  <button 
-                    className="delete-tag-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteGlobalTag(tag);
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {allUserTags.map(tag => {
+                const isActive = filterTags.includes(tag);
+
+                return (
+                  <div key={tag} className="tag-row">
+                    <button 
+                      onClick={() => toggleFilterTag(tag)} // Use the toggle function
+                      style={{ 
+                        fontWeight: isActive ? 'bold' : 'normal',
+                        color: isActive ? '#007bff' : 'inherit',
+                      }}
+                    >
+                      #{tag}
+                    </button>
+                    
+                    <button 
+                      className="delete-tag-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteGlobalTag(tag);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
         </div>
       )}
