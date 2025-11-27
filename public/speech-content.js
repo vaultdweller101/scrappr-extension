@@ -3,60 +3,52 @@
   if (window.__scrapprVoiceWidgetInjected) return;
   window.__scrapprVoiceWidgetInjected = true;
 
-  var SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    return;
-  }
-
+  // --- Storage Helper ---
   function getStorage() {
     if (typeof browser !== 'undefined' && browser.storage && browser.storage.local) {
       return {
-        get: function (key) {
-          return browser.storage.local.get(key);
-        },
-        set: function (obj) {
-          return browser.storage.local.set(obj);
-        }
+        get: (key) => browser.storage.local.get(key),
+        set: (obj) => browser.storage.local.set(obj)
       };
     }
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       return {
-        get: function (key) {
-          return new Promise(function (resolve, reject) {
-            chrome.storage.local.get(key, function (result) {
-              if (chrome.runtime && chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-              } else {
-                resolve(result);
-              }
-            });
+        get: (key) => new Promise((resolve, reject) => {
+          chrome.storage.local.get(key, (result) => {
+            if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+            else resolve(result);
           });
-        },
-        set: function (obj) {
-          return new Promise(function (resolve, reject) {
-            chrome.storage.local.set(obj, function () {
-              if (chrome.runtime && chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-              } else {
-                resolve();
-              }
-            });
+        }),
+        set: (obj) => new Promise((resolve, reject) => {
+          chrome.storage.local.set(obj, () => {
+            if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+            else resolve();
           });
-        }
+        })
       };
     }
     return null;
   }
 
   var storage = getStorage();
-  if (!storage) {
-    console.warn('Scrappr voice: no storage provider available (browser.storage.local / chrome.storage.local missing).');
-  } else {
-    console.log('Scrappr voice: storage provider initialized.');
+  
+  // --- Message Sender Helper ---
+  function sendMessageToBackground(message) {
+    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+      return browser.runtime.sendMessage(message);
+    }
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve(response);
+        });
+      });
+    }
+    return Promise.reject("No runtime available");
   }
 
+  // --- UI setup ---
   var root = document.createElement('div');
   root.id = 'scrappr-voice-widget-root';
   root.setAttribute('aria-live', 'polite');
@@ -123,129 +115,126 @@
 
   function setStatus(text) {
     status.textContent = text;
+    status.style.display = text ? 'block' : 'none';
   }
 
-  function setRecordingVisual(isRecording) {
-    button.setAttribute('aria-pressed', isRecording ? 'true' : 'false');
-    if (isRecording) {
-      button.classList.add('scrappr-voice-button-active');
-    } else {
-      button.classList.remove('scrappr-voice-button-active');
-    }
-  }
-
-  var recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = (navigator && navigator.language) || 'en-US';
-
+  // --- Audio Logic ---
+  var mediaRecorder = null;
+  var audioChunks = [];
   var isRecording = false;
-  var transcript = '';
 
-  function saveTranscriptIfAny() {
-    var text = transcript.trim();
-    if (!text) {
-      console.log('Scrappr voice: saveTranscriptIfAny called with empty text, skipping.');
-      return;
-    }
-    if (!storage) {
-      console.warn('Scrappr voice: storage is not available, cannot save transcript of length', text.length);
-      return;
-    }
-
-    var now = Date.now();
-    console.log('Scrappr voice: attempting to save transcript', { length: text.length, preview: text.slice(0, 80) });
-
-    storage
-      .get('scrapprVoiceNotesPending')
-      .then(function (result) {
-        var existing = result && result.scrapprVoiceNotesPending;
-        var list = Array.isArray(existing) ? existing.slice() : [];
-        console.log('Scrappr voice: loaded existing pending voice notes', {
-          existingCount: Array.isArray(existing) ? existing.length : 0
-        });
-        list.push({ id: now, createdAt: now, text: text });
-        return storage.set({ scrapprVoiceNotesPending: list });
-      })
-      .then(function () {
-        console.log('Scrappr voice: successfully saved voice note with id', now);
-        setStatus('Voice note saved for Scrappr. Open the popup to import it.');
-      })
-      .catch(function (err) {
-        console.warn('Scrappr voice: failed to save voice note', err);
-        if (err && err.message === 'Extension context invalidated.') {
-          setStatus('Scrappr was just updated. Refresh this Google Docs tab and try again.');
-        } else {
-          setStatus('Could not save voice note to Scrappr.');
-        }
-      });
-  }
-
-  recognition.onstart = function () {
-    isRecording = true;
-    transcript = '';
-    console.log('Scrappr voice: recognition started');
-    setRecordingVisual(true);
-    setStatus('Listening… Speak clearly, then click again to save.');
-  };
-
-  recognition.onresult = function (event) {
-    var finalTranscript = '';
-    for (var i = event.resultIndex; i < event.results.length; i++) {
-      var result = event.results[i];
-      if (result.isFinal && result[0]) {
-        finalTranscript += result[0].transcript;
-      }
-    }
-    if (!finalTranscript) return;
-    console.log('Scrappr voice: received final transcript chunk', finalTranscript);
-    transcript += finalTranscript + ' ';
-  };
-
-  recognition.onerror = function (event) {
-    isRecording = false;
-    setRecordingVisual(false);
-    console.warn('Scrappr voice: recognition error', event && event.error, event);
-    if (event && event.error === 'not-allowed') {
-      setStatus('Microphone access was blocked for docs.google.com. Check site settings.');
-    } else if (event && event.error === 'network') {
-      setStatus("The browser's speech service could not be reached. Check your network or privacy settings (for example, Shields in Brave).");
-    } else {
-      setStatus('There was a problem with speech recognition.');
-    }
-  };
-
-  recognition.onend = function () {
-    console.log('Scrappr voice: recognition ended, transcript length', transcript.trim().length);
-    if (isRecording) {
-      // onend can fire even while recording; treat this as a stop
-      isRecording = false;
-      setRecordingVisual(false);
-    }
-    // saving whatever we captured
-    if (transcript.trim()) {
-      saveTranscriptIfAny();
-      transcript = '';
-    } else if (!isRecording) {
-      setStatus('No speech detected. Click to try recording again.');
-    }
-  };
-
-  function startRecording() {
+  async function startRecording() {
     try {
-      recognition.start();
-    } catch (e) {
-      // start can throw if called too quickly; ignore
-      setStatus('Could not start listening yet. Try again in a moment.');
+      setStatus('Requesting microphone...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks to release mic
+        stream.getTracks().forEach(track => track.stop());
+        
+        setStatus('Processing audio...');
+        button.textContent = 'Processing...';
+        button.disabled = true;
+        button.classList.remove('recording');
+
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        await processAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      button.textContent = 'Stop Recording';
+      button.classList.add('recording');
+      setStatus('Recording... Click Stop when done.');
+
+    } catch (err) {
+      console.error('Scrappr: Mic error', err);
+      setStatus('Could not access microphone. Please allow access.');
     }
   }
 
   function stopRecording() {
-    try {
-      recognition.stop();
-    } catch (e) {
-      setStatus('Could not stop listening cleanly, but recording has ended.');
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      isRecording = false;
     }
+  }
+
+  async function processAudio(blob) {
+    try {
+      // Convert Blob to Base64
+      var reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async function() {
+        var base64data = reader.result.split(',')[1];
+        
+        setStatus('Transcribing...');
+        
+        try {
+          // Send to Background Script
+          var response = await sendMessageToBackground({ 
+            type: 'TRANSCRIBE_AUDIO', 
+            audioBase64: base64data 
+          });
+
+          if (response && response.success) {
+            saveTranscript(response.text);
+          } else {
+            var errorMsg = response.error || "Unknown error";
+            if (errorMsg.includes("signed in")) {
+              setStatus('Please open Scrappr extension and sign in first.');
+            } else {
+              setStatus('Transcription failed: ' + errorMsg);
+            }
+            resetButton();
+          }
+        } catch (err) {
+          console.error('Scrappr: Background message error', err);
+          setStatus('Error communicating with extension.');
+          resetButton();
+        }
+      };
+    } catch (e) {
+      setStatus('Error processing audio file.');
+      resetButton();
+    }
+  }
+
+  function saveTranscript(text) {
+    if (!text) {
+      setStatus('No speech detected.');
+      resetButton();
+      return;
+    }
+
+    var now = Date.now();
+    storage.get('scrapprVoiceNotesPending').then(function(result) {
+      var list = result.scrapprVoiceNotesPending || [];
+      list.push({ id: now, createdAt: now, text: text });
+      return storage.set({ scrapprVoiceNotesPending: list });
+    }).then(function() {
+      setStatus('Note saved! Open extension to import.');
+      setTimeout(() => setStatus(''), 5000);
+    }).catch(function(err) {
+      setStatus('Could not save note to storage.');
+    }).finally(function() {
+      resetButton();
+    });
+  }
+
+  function resetButton() {
+    button.textContent = 'Voice note';
+    button.disabled = false;
+    button.classList.remove('recording');
   }
 
   button.addEventListener('click', function (event) {

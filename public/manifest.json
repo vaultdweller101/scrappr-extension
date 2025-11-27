@@ -29,7 +29,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://auth.firebase.com https://firestore.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com https://identitytoolkit.googleapis.com;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://auth.firebase.com https://firestore.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://us-central1-scrappr-a2f39.cloudfunctions.net;"
   },
   "background": {
     "service_worker": "background.js",
