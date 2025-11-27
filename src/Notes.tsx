@@ -11,10 +11,10 @@ interface PendingVoiceNote {
 }
 
 // Utility function to convert URLs in text to clickable links
-function renderTextWithLinks(text: string) {
+function renderTextWithLinks(text: string): React.ReactNode {
   // Regex to match URLs (http://, https://, www., and plain domains)
   const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/g;
-  const parts: (string | JSX.Element)[] = [];
+  const parts: (string | React.ReactElement)[] = [];
   let lastIndex = 0;
   let match;
   let key = 0;
