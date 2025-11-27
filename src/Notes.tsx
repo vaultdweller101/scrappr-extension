@@ -254,28 +254,6 @@ export default function Notes() {
           });
         }
 
-        // Sync to browser local storage (Optimistic UI handles the rest via onSnapshot, but this keeps cache fresh)
-        const notesQuery = query(
-            collection(db, 'users', user.uid, 'notes'),
-            orderBy('timestamp', 'asc')
-        );
-        
-        const snapshot = await getDocs(notesQuery);
-        const updatedNotes = snapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data() 
-        }));
-
-        const storageData = { 'cached_firestore_notes': updatedNotes };
-
-        if (typeof browser !== 'undefined') {
-            browser.storage.local.set(storageData).catch((err) => console.error('Storage sync failed:', err));
-        } else {
-            chrome.storage.local.set(storageData, () => {
-                if (chrome.runtime.lastError) console.error(chrome.runtime.lastError);
-            });
-        }
-
         setNewNoteContent('');
         closeNewNoteModal();
 
