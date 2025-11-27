@@ -62,7 +62,16 @@
 
   var status = document.createElement('div');
   status.className = 'scrappr-voice-status';
-  status.textContent = 'Click to start a voice note for Scrappr.';
+
+  var statusFill = document.createElement('div');
+  statusFill.className = 'scrappr-voice-volume-fill';
+
+  var statusText = document.createElement('div');
+  statusText.className = 'scrappr-voice-status-text';
+  statusText.textContent = 'Click to start a voice note for Scrappr.';
+
+  status.appendChild(statusFill);
+  status.appendChild(statusText);
 
   root.appendChild(button);
   root.appendChild(status);
@@ -107,6 +116,22 @@
     '  color: #e5e7eb;',
     '  font-size: 11px;',
     '  max-width: 240px;',
+    '  position: relative;',
+    '  overflow: hidden;',
+    '}',
+    '.scrappr-voice-status-text {',
+    '  position: relative;',
+    '  z-index: 2;',
+    '}',
+    '.scrappr-voice-volume-fill {',
+    '  position: absolute;',
+    '  left: 0;',
+    '  top: 0;',
+    '  bottom: 0;',
+    '  width: 0%;',
+    '  background: rgba(34, 197, 94, 0.45);',
+    '  z-index: 1;',
+    '  pointer-events: none;',
     '}',
   ].join('\n');
 
@@ -114,7 +139,7 @@
   document.documentElement.appendChild(root);
 
   function setStatus(text) {
-    status.textContent = text;
+    statusText.textContent = text;
     status.style.display = text ? 'block' : 'none';
   }
 
@@ -122,6 +147,91 @@
   var mediaRecorder = null;
   var audioChunks = [];
   var isRecording = false;
+
+  var audioContext = null;
+  var analyser = null;
+  var sourceNode = null;
+  var volumeAnimationId = null;
+  var volumeDataArray = null;
+
+  function startVolumeMeter(stream) {
+    try {
+      var AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) {
+        return;
+      }
+
+      if (!audioContext) {
+        audioContext = new AudioContextCtor();
+      }
+
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(function () {});
+      }
+
+      sourceNode = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      sourceNode.connect(analyser);
+
+      volumeDataArray = new Uint8Array(analyser.fftSize);
+
+      if (volumeAnimationId) {
+        cancelAnimationFrame(volumeAnimationId);
+      }
+
+      function updateVolume() {
+        if (!analyser) {
+          return;
+        }
+        analyser.getByteTimeDomainData(volumeDataArray);
+
+        var sum = 0;
+        for (var i = 0; i < volumeDataArray.length; i++) {
+          var v = (volumeDataArray[i] - 128) / 128;
+          sum += v * v;
+        }
+
+        var rms = Math.sqrt(sum / volumeDataArray.length) || 0;
+        var level = Math.min(1, rms * 4);
+
+        if (statusFill) {
+          statusFill.style.width = (level * 100) + '%';
+        }
+
+        volumeAnimationId = requestAnimationFrame(updateVolume);
+      }
+
+      updateVolume();
+    } catch (e) {
+      console.warn('Scrappr: could not start volume meter', e);
+    }
+  }
+
+  function stopVolumeMeter() {
+    if (volumeAnimationId) {
+      cancelAnimationFrame(volumeAnimationId);
+      volumeAnimationId = null;
+    }
+
+    if (statusFill) {
+      statusFill.style.width = '0%';
+    }
+
+    if (sourceNode) {
+      try {
+        sourceNode.disconnect();
+      } catch (e) {}
+      sourceNode = null;
+    }
+
+    if (analyser) {
+      try {
+        analyser.disconnect();
+      } catch (e) {}
+      analyser = null;
+    }
+  }
 
   async function startRecording() {
     try {
@@ -131,6 +241,8 @@
       mediaRecorder = new MediaRecorder(stream);
       audioChunks = [];
 
+      startVolumeMeter(stream);
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunks.push(event.data);
@@ -138,6 +250,7 @@
       };
 
       mediaRecorder.onstop = async () => {
+        stopVolumeMeter();
         // Stop all tracks to release mic
         stream.getTracks().forEach(track => track.stop());
         
@@ -159,6 +272,7 @@
     } catch (err) {
       console.error('Scrappr: Mic error', err);
       setStatus('Could not access microphone. Please allow access.');
+      stopVolumeMeter();
     }
   }
 
