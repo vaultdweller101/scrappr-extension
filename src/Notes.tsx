@@ -362,7 +362,10 @@ export default function Notes() {
     }
   };
 
-  const notesToDisplay = currentView === 'suggestions' ? suggestions : savedNotes;
+  let notesToDisplay = currentView === 'suggestions' ? suggestions : savedNotes;
+  if (currentView === 'notes' && filterTag) {
+    notesToDisplay = notesToDisplay.filter(note => note.tags && note.tags.includes(filterTag));
+  }
   const showLoading = authLoading || (user && dataLoading);
   
   if (authLoading) {
@@ -414,20 +417,16 @@ export default function Notes() {
           Logout
         </button>
       </div>
-
-      <div>
-        <button onClick={() => setShowTagFilter(!showTagFilter)} className='view-toggle-button'>
-          Filter by Tag
-        </button>
-      </div>
       
       <div className="saved-notes">
       <h3 className="status-message">
         {showLoading
-          ? 'Loading notes...'
-          : currentView === 'notes'
-            ? `All Notes (${savedNotes.length})`
-            : suggestions.length > 0
+        ? 'Loading notes...'
+        : currentView === 'notes'
+          ? filterTag 
+              ? `Tagged: #${filterTag} (${notesToDisplay.length})`
+              : `All Notes (${savedNotes.length})`
+          : suggestions.length > 0
               ? statusMessage
               : 'No suggestions found.'
         }
@@ -452,14 +451,35 @@ export default function Notes() {
         )}
       </div>
 
-      {showTagFilter && (
+      {currentView === 'notes' && (
         <div className="filter-popup-menu">
           <h4>Filter by Tag</h4>
             <div className="filter-tags-list">
+              <div className="tag-row">
+                <button 
+                  onClick={() => setFilterTag(null)}
+                  style={{ 
+                    fontWeight: filterTag === null ? 'bold' : 'normal',
+                    color: filterTag === null ? '#007bff' : 'inherit'
+                  }}
+                >
+                  All Notes
+                </button>
+              </div>
+
               {allUserTags.map(tag => (
                 <div key={tag} className="tag-row">
                   
-                  <button onClick={() => setFilterTag(tag)}>#{tag}</button>
+                  <button 
+                    onClick={() => setFilterTag(tag)}
+                    style={{
+                      fontWeight: filterTag === tag ? 'bold' : 'normal',
+                      color: filterTag === tag ? '#007bff' : 'inherit',
+                      textTransform: 'capitalize' 
+                    }}
+                  >
+                    #{tag}
+                  </button>
                   
                   <button 
                     className="delete-tag-btn"
