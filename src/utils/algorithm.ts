@@ -2,6 +2,7 @@ export interface SavedNote {
   id: string;
   content: string;
   timestamp: number;
+  tags: string[];
 }
 
 export function tokenizeAndNormalize(text: string): Set<string> {

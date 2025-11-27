@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import browser from 'webextension-polyfill';
-import { collection, onSnapshot, orderBy, query, addDoc, getDocs, serverTimestamp, deleteDoc, updateDoc, doc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, addDoc, getDocs, serverTimestamp, deleteDoc, updateDoc, doc, DocumentData , setDoc, arrayUnion, getDoc, writeBatch, arrayRemove, where} from 'firebase/firestore';
 import { db, useAuth } from './firebase';
 import { SavedNote, findSuggestions } from './utils/algorithm';
 
@@ -102,11 +102,69 @@ export default function Notes() {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null); // 2. Track editing ID
 
+  // all tag-related things
+  const [tags, setTags] = useState<string[]>([]);
+  const [allUserTags, setAllUserTags] = useState<string[]>([]);
+  const [currentTagInput, setCurrentTagInput] = useState("");
+  const [showTagFilter, setShowTagFilter] = useState(true);
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+
   const [currentView, setCurrentView] = useState<'suggestions' | 'notes'>('suggestions');
   const [statusMessage, setStatusMessage] = useState('Loading notes...');
   const [dataLoading, setDataLoading] = useState(true);
   const [pendingVoiceNotes, setPendingVoiceNotes] = useState<PendingVoiceNote[]>([]);
 
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && currentTagInput.trim()) {
+      e.preventDefault();
+      if (!tags.includes(currentTagInput.trim())) {
+        setTags([...tags, currentTagInput.trim()]);
+      }
+      setCurrentTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const deleteGlobalTag = async (tagToDelete: string) => {
+    if (!user) return;
+
+    if (!confirm(`Are you sure you want to delete #${tagToDelete} from ALL notes?`)) return;
+
+    try {
+      const batch = writeBatch(db);
+
+      // delete from master list
+      const masterRef = doc(db, "users", user.uid, "metadata", "tags");
+      batch.update(masterRef, {
+        list: arrayRemove(tagToDelete)
+      });
+
+      // delete from all notes
+      const notesRef = collection(db, "users", user.uid, "notes");
+      const q = query(
+        notesRef,
+        where("tagList", "array-contains", tagToDelete)
+      );
+
+      const snapshot = await getDocs(q);
+
+      snapshot.docs.forEach((noteDoc) => {
+        batch.update(noteDoc.ref, {
+          tagList: arrayRemove(tagToDelete)
+        });
+      });
+
+      // update everything at once
+      await batch.commit();
+      
+    } catch (error) {
+      console.error("Error deleting global tag:", error);
+    }
+  };
+  
   useEffect(() => {
     if (!user) {
       setSavedNotes([]);
@@ -118,11 +176,21 @@ export default function Notes() {
     const notesCollectionRef = collection(db, 'users', user.uid, 'notes');
     const q = query(notesCollectionRef, orderBy('timestamp', 'asc'));
 
+    const tagsRef = doc(db, "users", user.uid, "metadata", "tags");
+    const unsubscribeTags = onSnapshot(tagsRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setAllUserTags(docSnap.data().list || []);
+      } else {
+        setAllUserTags([]);
+      }
+    });
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notesList = snapshot.docs.map(doc => ({
         id: doc.id,
         content: doc.data().content,
         timestamp: doc.data().timestamp || Date.now(),
+        tags: doc.data().tagList
       })) as SavedNote[];
       
       setSavedNotes(notesList);
@@ -163,7 +231,10 @@ export default function Notes() {
       setStatusMessage("Failed to load notes from cloud.");
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeTags();
+    };
   }, [user]);
 
   useEffect(() => {
@@ -187,6 +258,7 @@ export default function Notes() {
         if (payload && payload.id) {
           setNewNoteContent(payload.content || '');
           setEditingNoteId(payload.id);
+          setTags(payload.tagList);
           setIsModalOpen(true);
           // clear the pending edit so it doesn't reopen again
           try { browser.storage.local.remove('scrappr_edit_note'); } catch (e) { /* ignore */ }
@@ -199,6 +271,7 @@ export default function Notes() {
 
   const openNewNoteModal = () => {
     setNewNoteContent('');
+    setTags([]);
     setEditingNoteId(null); // Ensure we are in create mode
     setIsModalOpen(true);
   };
@@ -206,6 +279,7 @@ export default function Notes() {
   // 3. Add handler to open modal in edit mode
   const handleEditNote = (note: SavedNote) => {
     setNewNoteContent(note.content);
+    setTags(note.tags || []);
     setEditingNoteId(note.id);
     setIsModalOpen(true);
   };
@@ -244,6 +318,7 @@ export default function Notes() {
           await updateDoc(noteRef, {
             content: newNoteContent,
             timestamp: Date.now(), // Update timestamp to move it to top/bottom depending on sort
+            tagList: tags,
           });
         } else {
           // --- CREATE ---
@@ -251,10 +326,20 @@ export default function Notes() {
               content: newNoteContent,
               timestamp: Date.now(),
               createdAt: serverTimestamp(),
+              tagList: tags,
           });
         }
 
+        if (tags.length > 0) {
+          const masterTagsRef = doc(db, "users", user.uid, "metadata", "tags");
+      
+          await setDoc(masterTagsRef, {
+            list: arrayUnion(...tags)
+          }, { merge: true });
+        }
+
         setNewNoteContent('');
+        setTags([]);
         closeNewNoteModal();
 
     } catch (error) {
@@ -329,6 +414,12 @@ export default function Notes() {
           Logout
         </button>
       </div>
+
+      <div>
+        <button onClick={() => setShowTagFilter(!showTagFilter)} className='view-toggle-button'>
+          Filter by Tag
+        </button>
+      </div>
       
       <div className="saved-notes">
       <h3 className="status-message">
@@ -361,6 +452,30 @@ export default function Notes() {
         )}
       </div>
 
+      {showTagFilter && (
+        <div className="filter-popup-menu">
+          <h4>Filter by Tag</h4>
+            <div className="filter-tags-list">
+              {allUserTags.map(tag => (
+                <div key={tag} className="tag-row">
+                  
+                  <button onClick={() => setFilterTag(tag)}>#{tag}</button>
+                  
+                  <button 
+                    className="delete-tag-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteGlobalTag(tag);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+        </div>
+      )}
+
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeNewNoteModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -372,6 +487,26 @@ export default function Notes() {
               placeholder="Start writing your note..."
               autoFocus
             />
+            <div className="tag-input-section" style={{marginBottom: '15px'}}>
+              
+              <div className="tags-list" style={{display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px'}}>
+                {tags.map(tag => (
+                  <span key={tag} className="tag-chip" style={{background: '#eee', padding: '2px 8px', borderRadius: '12px', fontSize: '12px'}}>
+                    #{tag} 
+                    <button onClick={() => removeTag(tag)} style={{border:'none', background:'none', marginLeft:'4px', cursor:'pointer'}}>×</button>
+                  </span>
+                ))}
+              </div>
+
+              <input 
+                type="text"
+                placeholder="Add tag (press Enter)..."
+                value={currentTagInput}
+                onChange={(e) => setCurrentTagInput(e.target.value)}
+                onKeyDown={handleTagInputKeyDown}
+                className="tag-input-field"
+              />
+            </div>
             <div className="modal-actions">
               <button onClick={closeNewNoteModal} className="modal-button cancel-note">
                 Cancel
