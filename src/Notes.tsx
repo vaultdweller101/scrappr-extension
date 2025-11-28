@@ -375,7 +375,7 @@ export default function Notes() {
     }
   };
 
-  const notesToDisplay = currentView === 'suggestions' ? suggestions : savedNotes.filter(note => {
+  const notesToDisplay = (currentView === 'suggestions' ? suggestions : savedNotes).filter(note => {
   // 1. If no tags are selected, show everything
     if (!filterTags || filterTags.length === 0) return true;
 
@@ -443,13 +443,16 @@ export default function Notes() {
       <div className="saved-notes">
       <h3 className="status-message">
         {showLoading
-        ? 'Loading notes...'
-        : currentView === 'notes'
-          ? (filterTags && filterTags.length > 0)
-              ? `Tagged (${notesToDisplay.length})`
+          ? 'Loading notes...'
+          : currentView === 'notes'
+            ? (filterTags && filterTags.length > 0)
+              ? `Tagged Notes (${notesToDisplay.length})`
               : `All Notes (${savedNotes.length})`
-          : suggestions.length > 0
-              ? statusMessage
+            
+            : suggestions.length > 0
+              ? (filterTags && filterTags.length > 0)
+                ? `Filtered Suggestions (${notesToDisplay.length})`
+                : statusMessage
               : 'No suggestions found.'
         }
       </h3>
@@ -473,52 +476,52 @@ export default function Notes() {
         )}
       </div>
 
-      {currentView === 'notes' && (
-        <div className="filter-popup-menu">
-          <h4>Filter by Tag</h4>
-            <div className="filter-tags-list">
-              <div className="tag-row">
-                <button 
-                  onClick={() => setFilterTags([])}
-                  style={{ 
-                    fontWeight: filterTags.length === 0  ? 'bold' : 'normal',
-                    color: filterTags.length === 0 ? '#007bff' : 'inherit'
-                  }}
-                >
-                  All Notes
-                </button>
-              </div>
-
-              {allUserTags.map(tag => {
-                const isActive = filterTags.includes(tag);
-
-                return (
-                  <div key={tag} className="tag-row">
-                    <button 
-                      onClick={() => toggleFilterTag(tag)} // Use the toggle function
-                      style={{ 
-                        fontWeight: isActive ? 'bold' : 'normal',
-                        color: isActive ? '#007bff' : 'inherit',
-                      }}
-                    >
-                      #{tag}
-                    </button>
-                    
-                    <button 
-                      className="delete-tag-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteGlobalTag(tag);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                );
-              })}
+      {/* {currentView === 'notes' && (*/}
+      <div className="filter-popup-menu">
+        <h4>Filter by Tag</h4>
+          <div className="filter-tags-list">
+            <div className="tag-row">
+              <button 
+                onClick={() => setFilterTags([])}
+                style={{ 
+                  fontWeight: filterTags.length === 0  ? 'bold' : 'normal',
+                  color: filterTags.length === 0 ? '#007bff' : 'inherit'
+                }}
+              >
+                All Notes
+              </button>
             </div>
-        </div>
-      )}
+
+            {allUserTags.map(tag => {
+              const isActive = filterTags.includes(tag);
+
+              return (
+                <div key={tag} className="tag-row">
+                  <button 
+                    onClick={() => toggleFilterTag(tag)} // Use the toggle function
+                    style={{ 
+                      fontWeight: isActive ? 'bold' : 'normal',
+                      color: isActive ? '#007bff' : 'inherit',
+                    }}
+                  >
+                    #{tag}
+                  </button>
+                  
+                  <button 
+                    className="delete-tag-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteGlobalTag(tag);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+      </div>
+      {/*)}*/}
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeNewNoteModal}>
@@ -544,7 +547,7 @@ export default function Notes() {
 
               <input 
                 type="text"
-                placeholder="Add tag (press Enter)..."
+                placeholder="Add tag (press Enter to save)"
                 value={currentTagInput}
                 onChange={(e) => setCurrentTagInput(e.target.value)}
                 onKeyDown={handleTagInputKeyDown}
