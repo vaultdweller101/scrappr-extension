@@ -376,18 +376,16 @@ export default function Notes() {
   };
 
   const notesToDisplay = (currentView === 'suggestions' ? suggestions : savedNotes).filter(note => {
-  // 1. If no tags are selected, show everything
+  // if no tags are selected, show everything
     if (!filterTags || filterTags.length === 0) return true;
 
-  // 2. If note has no tags, hide it (since we have a filter active)
+  // if filter is active, ignore notes without tags
     if (!note.tags || !Array.isArray(note.tags)) return false;
 
-  // 3. Check for overlap: Does the note contain AT LEAST ONE of the selected filter tags?
+  // notes that contain at least one of the tags selected
     return note.tags.some(noteTag => filterTags.includes(noteTag));
   });
-  // if (currentView === 'notes' && filterTag) {
-  //   notesToDisplay = notesToDisplay.filter(note => note.tags && note.tags.includes(filterTag));
-  // }
+
   const showLoading = authLoading || (user && dataLoading);
   
   if (authLoading) {
@@ -439,6 +437,64 @@ export default function Notes() {
           Logout
         </button>
       </div>
+
+      <div className="filter-popup-menu">
+        <h4>Filter by Tag</h4>
+          <div className="filter-tags-list">
+            <div className="tag-row" style={{
+              backgroundColor: filterTags.length === 0 ? '#007bff' : '#f5f5f5', 
+              borderColor: filterTags.length === 0 ? '#0056b3' : '#e0e0e0'
+            }}>
+              <button 
+                onClick={() => setFilterTags([])}
+                style={{ 
+                  fontWeight: filterTags.length === 0  ? 'bold' : 'normal',
+                  color: filterTags.length === 0 ? '#ffffff' : '#333333'
+                }}
+              >
+                All Notes
+              </button>
+            </div>
+
+            {allUserTags.map(tag => {
+              const isActive = filterTags.includes(tag);
+
+              return (
+                <div key={tag} className="tag-row" style={{
+                  backgroundColor: isActive ? '#007bff' : '#f5f5f5',
+                  borderColor: isActive ? '#0056b3' : '#e0e0e0'
+                }}>
+                  <button 
+                    onClick={() => toggleFilterTag(tag)} // Use the toggle function
+                    style={{ 
+                      fontWeight: isActive ? 'bold' : 'normal',
+                      color: isActive ? '#ffffff' : '#333333',
+                      marginRight: '5px'
+                    }}
+                  >
+                    #{tag}
+                  </button>
+                  
+                  <button 
+                    className="delete-tag-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteGlobalTag(tag);
+                    }}
+                    style={{
+                      color: isActive ? '#ffffff' : '#888888',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      opacity: isActive ? 1 : 0.6
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+      </div>
       
       <div className="saved-notes">
       <h3 className="status-message">
@@ -475,53 +531,6 @@ export default function Notes() {
             </div>
         )}
       </div>
-
-      {/* {currentView === 'notes' && (*/}
-      <div className="filter-popup-menu">
-        <h4>Filter by Tag</h4>
-          <div className="filter-tags-list">
-            <div className="tag-row">
-              <button 
-                onClick={() => setFilterTags([])}
-                style={{ 
-                  fontWeight: filterTags.length === 0  ? 'bold' : 'normal',
-                  color: filterTags.length === 0 ? '#007bff' : 'inherit'
-                }}
-              >
-                All Notes
-              </button>
-            </div>
-
-            {allUserTags.map(tag => {
-              const isActive = filterTags.includes(tag);
-
-              return (
-                <div key={tag} className="tag-row">
-                  <button 
-                    onClick={() => toggleFilterTag(tag)} // Use the toggle function
-                    style={{ 
-                      fontWeight: isActive ? 'bold' : 'normal',
-                      color: isActive ? '#007bff' : 'inherit',
-                    }}
-                  >
-                    #{tag}
-                  </button>
-                  
-                  <button 
-                    className="delete-tag-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteGlobalTag(tag);
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-      </div>
-      {/*)}*/}
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeNewNoteModal}>

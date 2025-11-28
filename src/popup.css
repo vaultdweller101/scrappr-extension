@@ -305,3 +305,29 @@ body {
   width: 100%;
   box-sizing: border-box;
 }
+
+.filter-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tag-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 4px 10px;
+  transition: all 0.2s ease;
+}
+
+.tag-row button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
