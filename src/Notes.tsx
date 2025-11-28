@@ -187,7 +187,7 @@ export default function Notes() {
     }
 
     const notesCollectionRef = collection(db, 'users', user.uid, 'notes');
-    const q = query(notesCollectionRef, orderBy('timestamp', 'asc'));
+    const q = query(notesCollectionRef, orderBy('timestamp', 'desc'));
 
     const tagsRef = doc(db, "users", user.uid, "metadata", "tags");
     const unsubscribeTags = onSnapshot(tagsRef, (docSnap) => {
